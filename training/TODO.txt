@@ -1,0 +1,51 @@
+--------------make training data steps-----------------
+
+0 decide how many 10km tiles we want to introduce
+
+1 Select area by 10km tile
+
+
+
+2 Clip stonewall dataset by tile, and clip DTM by tile
+	- DTM is on R drive
+	- get 10km tile name and find corresponding 1km tiles
+	- make 10km tile of DTM (and DSM)
+
+
+
+3 run python profiles script (output geojson of lines)
+
+4 read all geojsons to a geopandas dataframe, concat and export again as new geojson
+
+17 geojsons
+
+
+---------------- ezra
+
+
+4 visually check the output against orthfoto/dtm (marcia/angelina/mathilde/or us)
+
+----------------------- ana 
+
+
+5 anti-aliasing (I dont remember how we did this)
+
+
+
+
+6 extracting patches in overlap for both labels (stonewalls) and the training data (dtm etc)
+
+
+
+17 sets of labels and DTM
+
+
+--------------train model model steps-----------------
+
+either run 17 times, or put together to 1 dataset
+
+1 Import labels (stonewalls) and training data
+
+
+
+2 Train Model 
