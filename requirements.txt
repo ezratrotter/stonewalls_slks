@@ -1,0 +1,17 @@
+_whl/Fiona-1.8.17-cp38-cp38-win_amd64.whl
+_whl/GDAL-3.1.4-cp38-cp38-win_amd64.whl
+_whl/pyproj-3.0.0.post1-cp38-cp38-win_amd64.whl
+_whl/Rtree-0.9.4-cp38-cp38-win_amd64.whl
+_whl/Shapely-1.7.1-cp38-cp38-win_amd64.whl
+
+numpy
+matplotlib
+pandas
+geopandas
+scipy
+sklearn
+statsmodels
+pylint
+black
+sqlalchemy
+psycopg2
