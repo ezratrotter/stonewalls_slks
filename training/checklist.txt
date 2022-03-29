@@ -1,0 +1,10 @@
+
+	1. Select 1 10km tile.
+	2. Buffer 10m with x meters.
+	3. Clip stonewalls to (2)
+	4. Extract DTM raster by clipping (2) to the .vrt DTM. buteo.raster.clip
+	5. Done.
+
+	"/vsimem/path_to_geom.gpkg" 
+	
+	6. run the tool hingsaljs;klgjsd;k
