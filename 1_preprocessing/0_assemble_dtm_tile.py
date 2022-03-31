@@ -63,9 +63,10 @@ DSM_destination_dir = 'V:/2022-03-31_Stendiger_EZRA/training_data/initial_area/d
 
 print('moving files...', 'count: ', len(tile_list))
 for tile in tile_list:
+
     dtm_source_tif = os.path.join(DTM_source_dir, 'DTM_'+ tile +'.tif' )
     dsm_source_tif = os.path.join(DSM_source_dir, 'DSM_'+ tile +'.tif' )
-    # destination = destination_dir + tile_name
+
     shutil.copy(dtm_source_tif, DTM_destination_dir)
     shutil.copy(dsm_source_tif, DSM_destination_dir)
     print('moving: ',tile, '...')
