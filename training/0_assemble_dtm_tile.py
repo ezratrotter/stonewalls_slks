@@ -4,39 +4,36 @@ import os
 import glob
 import numpy as np
 import shapely
-from osgeo import ogr
+from osgeo import ogr, gdal
 #	1. Select 1 10km tile.
 km10 = gpd.read_file(r'D:\stonewalls_slks\data\pilot_training_data\training_10km_grid.gpkg')
-
+walls = gpd.read_file('D:/stonewalls_slks/data/stonewalls/denmark')
 myTileGeom = km10.loc[0]['geometry']
 
+#%%
 #	2. Buffer 10m with x meters.
-
-
 myTileGeomBuffered = myTileGeom.buffer(11.0)
 
-#	3. Clip stonewalls to (2)
 #%%
-walls = gpd.read_file('D:/stonewalls_slks/data/stonewalls/denmark')
-
+#	3. Clip stonewalls to (2)
 walls_clip = gpd.clip(walls, myTileGeomBuffered)
 #%%
-import matplotlib.pyplot as plt
+wrap_command = 'gdalwarp -of GTiff -cutline D:/VIIRS/gha_admbndp0_1m_gaul/GHA_admbndp0_1m_GAUL.shp -cl GHA_admbndp0_1m_GAUL -crop_to_cutline {input1} {output1}'
+
+#   4. Extract DTM raster by clipping (2) to the .vrt DTM. buteo.raster.clip
+vrt = 'M:/Ekstern_datasamling/Danmark/Frie_DATA/DTM_2019/DTM_Grid_1km_TIFF/_merged.vrt'
 
 
-walls_clip.plot()
-walls.plot()
+# walls_clip.plot()
+# walls.plot()
 #	4. Extract DTM raster by clipping (2) to the .vrt DTM. buteo.raster.clip
 
 #	5. Done.
 
+
+
+
 #%%
-km10 = gpd.read_file(r'D:\stonewalls_slks\data\pilot_training_data\training_10km_grid.gpkg')
-km1 = gpd.read_file(r'D:\stonewalls_slks\data\grids\dki_1km.gpkg')
-
-bob = np.array(km1.intersects(km10).to_list()) 
-
-
 # pilot_grids_gdf = gpd.read_file(r'D:\stonewalls_slks\data\pilot_training_data\training_10km_grid.gpkg')
 # # grids_list = pilot_grids_gdf['KN10kmDK'].tolist()
 

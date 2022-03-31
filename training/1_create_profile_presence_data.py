@@ -32,10 +32,10 @@ date = datetime.now().strftime("%m-%d-%Y")
 
 
 gdf = walls_clip.to_crs(epsg=25832)
-
+gdf.index
 # activate and replace first arg of create_profiles for smaller subset
 # sub_gdf = gdf[:50]
-
+#%%
 profiles, walls = create_profiles(gdf, vrt, subwall_distance=distance)
 
 profiles_out = '{}profiles_{}_{}.geojson'.format(output_folder, str(distance)+'m', date)
