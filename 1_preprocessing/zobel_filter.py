@@ -1,5 +1,7 @@
 # def zobel_filter(in_raster, size, shape, pre_process):
 
+#%%
+
 import numpy as np
 from numba import jit, prange
 
@@ -247,11 +249,11 @@ def zobel_filter(arr, size=[3, 3], normalised_sobel=False, gaussian_preprocess=F
     filtered = (res1 ** 2 + res2 ** 2) ** 0.5
     return filtered
 
+#%%
+import sys
 
 buteo_follow = "D:/buteo/"
 buteo_buteo_follow = "D:/buteo/buteo/"
-
-import sys
 
 sys.path.append(buteo_follow)
 sys.path.append(buteo_buteo_follow)
@@ -259,15 +261,21 @@ sys.path.append(buteo_buteo_follow + "filters/")
 sys.path.append(buteo_buteo_follow + "machine_learning/")
 sys.path.append(buteo_buteo_follow + "raster/")
 
+import time
+
+start = time.time()
+
+
 from convolutions import *
 from kernel_generator import *
 from filter import *
-from patch_extraction import *
+# from patch_extraction import *
 from raster import *
+from raster.io import *
 from osgeo import gdal
 
-ref = "DTM_1km_6078_589.tif"
-
+ref = r"V:\2022-03-31_Stendiger_EZRA\training_data\initial_area\dem\dtm\DTM_1km_6052_661.tif"
+out = r"V:\2022-03-31_Stendiger_EZRA\training_data\initial_area\dem\hat\SOBELDTM_1km_6052_661_.tif"
 raster = gdal.Open(ref)
 bandarr = raster.GetRasterBand(1).ReadAsArray()
 npy = np.array(bandarr)
@@ -277,3 +285,7 @@ result = zobel_filter(
 )
 
 array_to_raster(result, reference=ref, out_path="attempt3.tif")
+
+end = time.time()
+print(end - start)
+
