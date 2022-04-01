@@ -252,14 +252,18 @@ def zobel_filter(arr, size=[3, 3], normalised_sobel=False, gaussian_preprocess=F
 #%%
 import sys
 
-buteo_follow = "D:/buteo/"
-buteo_buteo_follow = "D:/buteo/buteo/"
 
-sys.path.append(buteo_follow)
-sys.path.append(buteo_buteo_follow)
-sys.path.append(buteo_buteo_follow + "filters/")
-sys.path.append(buteo_buteo_follow + "machine_learning/")
-sys.path.append(buteo_buteo_follow + "raster/")
+yellow_path = "//wsl$/Ubuntu-20.04/home/afer/yellow/"
+# buteo_buteo_follow = "D:/buteo/buteo/"
+
+import sys; sys.path.append(yellow_path); sys.path.append(yellow_path + 'buteo/'); sys.path.append(yellow_path + 'buteo/machine_learning/'); sys.path.append(yellow_path + 'buteo/filters/'); sys.path.append(yellow_path + 'buteo/raster/')
+
+
+# sys.path.append(buteo_follow)
+# sys.path.append(buteo_buteo_follow)
+# sys.path.append(buteo_buteo_follow + "filters/")
+# sys.path.append(buteo_buteo_follow + "machine_learning/")
+# sys.path.append(buteo_buteo_follow + "raster/")
 
 import time
 
@@ -284,8 +288,10 @@ result = zobel_filter(
     npy, size=[5, 5], normalised_sobel=False, gaussian_preprocess=False
 )
 
-array_to_raster(result, reference=ref, out_path="attempt3.tif")
+array_to_raster(result, reference=ref, out_path=out)
 
 end = time.time()
 print(end - start)
 
+
+# %%
