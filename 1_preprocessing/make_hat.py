@@ -2,6 +2,8 @@
 import subprocess
 import glob
 import os
+import Scripts.gdal_calc
+
 """
 V:/2022-03-31_Stendiger_EZRA/training_data/initial_area/dem/dsm
 DSM_1km_6052_660.tif
@@ -31,9 +33,12 @@ for t in tile_list:
     if os.path.exists(hat_file):
         print('HAT file already exists: ', hat_file)
         continue
-    subprocess_string ="gdal_calc.py -A {} -B {} --outfile={} --calc='A-B'".format(dtm, dsm, hat_file)
+    # calccommand ="gdal_calc -A {dtm} -B {dsm} --outfile={hat_file} --calc='A-B'"
+    Calc("A-B", A=dsm, B=dtm, outfile=hat_file)
     print('HAT file created: ', hat_file)
         
 print('checked')
 
+# %%
+import Scripts.gdal_calc
 # %%
