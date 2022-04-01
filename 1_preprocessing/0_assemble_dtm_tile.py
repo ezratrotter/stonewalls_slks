@@ -40,16 +40,18 @@ import numpy as np
 import shapely
 from osgeo import ogr, gdal
 
-km10training = gpd.read_file(r'D:\stonewalls_slks\data\pilot_training_data\training_10km_grid.gpkg')
-
-km1 = gpd.read_file(r'D:\stonewalls_slks\data\grids\dki_1km.gpkg')
-km10 = gpd.read_file(r'D:\stonewalls_slks\data\grids\dki_10km.gpkg')
+km10training = gpd.read_file(r'V:\2022-03-31_Stendiger_EZRA\stonewalls_slks\data\pilot_training_data\training_10km_grid.gpkg')
+km1 = gpd.read_file(r'V:\2022-03-31_Stendiger_EZRA\stonewalls_slks\data\grids\dki_1km.gpkg')
+# km10 = gpd.read_file(r'V:\2022-03-31_Stendiger_EZRA\stonewalls_slks\data\grids\dki_10km.gpkg')
 
 
 km10training['geometry'] = km10training.apply(lambda x: x['geometry'].buffer(1), axis=1)
 
 tile_list = gpd.overlay(km1, km10training, how='intersection')['dki_1km'].tolist()
 print(len(tile_list), 'tiles....')
+
+#%%
+len(gpd.overlay(km1, km10training, how='intersection')['dki_1km'].unique().tolist())
 
 #%%
 import shutil
@@ -63,10 +65,19 @@ DSM_destination_dir = 'V:/2022-03-31_Stendiger_EZRA/training_data/initial_area/d
 
 print('moving files...', 'count: ', len(tile_list))
 for tile in tile_list:
-
+    
     dtm_source_tif = os.path.join(DTM_source_dir, 'DTM_'+ tile +'.tif' )
     dsm_source_tif = os.path.join(DSM_source_dir, 'DSM_'+ tile +'.tif' )
 
-    shutil.copy(dtm_source_tif, DTM_destination_dir)
-    shutil.copy(dsm_source_tif, DSM_destination_dir)
-    print('moving: ',tile, '...')
+    dtm_dest_tif = os.path.join(DTM_destination_dir, 'DTM_'+ tile +'.tif' )
+    dsm_dest_tif = os.path.join(DSM_destination_dir, 'DSM_'+ tile +'.tif' )
+
+    if not os.path.exists(dtm_dest_tif):
+        shutil.copy(dtm_source_tif, dtm_dest_tif)
+        print('DTM file didnt exist: ', dtm_source_tif)
+    if not os.path.isfile(dsm_dest_tif):
+        shutil.copy(dsm_source_tif, dsm_dest_tif)
+        print('DSM file didnt exist: ', dsm_source_tif)
+    # print('moving: ',tile, '...')
+print('finished')
+# %%
