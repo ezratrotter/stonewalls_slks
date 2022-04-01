@@ -253,10 +253,10 @@ def zobel_filter(arr, size=[3, 3], normalised_sobel=False, gaussian_preprocess=F
 import sys
 
 
-yellow_path = "//wsl$/Ubuntu-20.04/home/afer/yellow/"
-# buteo_buteo_follow = "D:/buteo/buteo/"
+yellow_path = "D:/buteo/"
+# buteo_buteo_follow = "D:/buteo/"
 
-import sys; sys.path.append(yellow_path); sys.path.append(yellow_path + 'buteo/'); sys.path.append(yellow_path + 'buteo/machine_learning/'); sys.path.append(yellow_path + 'buteo/filters/'); sys.path.append(yellow_path + 'buteo/raster/')
+import sys; sys.path.append(yellow_path); sys.path.append(yellow_path + 'buteo/'); sys.path.append(yellow_path + 'buteo/machine_learning/'); sys.path.append(yellow_path + 'buteo/filters/'); sys.path.append(yellow_path + 'buteo/raster/'); sys.path.append(yellow_path + 'buteo/convolutions/')
 
 
 # sys.path.append(buteo_follow)
@@ -265,17 +265,17 @@ import sys; sys.path.append(yellow_path); sys.path.append(yellow_path + 'buteo/'
 # sys.path.append(buteo_buteo_follow + "machine_learning/")
 # sys.path.append(buteo_buteo_follow + "raster/")
 
+from convolutions import *
+from kernel_generator import *
+from filter import *
+# # from patch_extraction import *
+from raster import *
+from raster.io import *
 import time
 
 start = time.time()
 
 
-from convolutions import *
-from kernel_generator import *
-from filter import *
-# from patch_extraction import *
-from raster import *
-from raster.io import *
 from osgeo import gdal
 
 ref = r"V:\2022-03-31_Stendiger_EZRA\training_data\initial_area\dem\dtm\DTM_1km_6052_661.tif"
