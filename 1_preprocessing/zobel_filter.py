@@ -1,7 +1,3 @@
-# def zobel_filter(in_raster, size, shape, pre_process):
-
-#%%
-
 import numpy as np
 from numba import jit, prange
 
@@ -249,49 +245,56 @@ def zobel_filter(arr, size=[3, 3], normalised_sobel=False, gaussian_preprocess=F
     filtered = (res1 ** 2 + res2 ** 2) ** 0.5
     return filtered
 
-#%%
-import sys
+if __name__ == "__main__":
+    print("Starting...")
+    import sys
 
 
-yellow_path = "D:/buteo/"
-# buteo_buteo_follow = "D:/buteo/"
+    yellow_path = "D:/buteo/"
+    # buteo_buteo_follow = "D:/buteo/"
 
-import sys; sys.path.append(yellow_path); sys.path.append(yellow_path + 'buteo/'); sys.path.append(yellow_path + 'buteo/machine_learning/'); sys.path.append(yellow_path + 'buteo/filters/'); sys.path.append(yellow_path + 'buteo/raster/'); sys.path.append(yellow_path + 'buteo/convolutions/')
-
-
-# sys.path.append(buteo_follow)
-# sys.path.append(buteo_buteo_follow)
-# sys.path.append(buteo_buteo_follow + "filters/")
-# sys.path.append(buteo_buteo_follow + "machine_learning/")
-# sys.path.append(buteo_buteo_follow + "raster/")
-
-from convolutions import *
-from kernel_generator import *
-from filter import *
-# # from patch_extraction import *
-from raster import *
-from raster.io import *
-import time
-
-start = time.time()
+    import sys; sys.path.append(yellow_path); sys.path.append(yellow_path + 'buteo/'); sys.path.append(yellow_path + 'buteo/machine_learning/'); sys.path.append(yellow_path + 'buteo/filters/'); sys.path.append(yellow_path + 'buteo/raster/'); sys.path.append(yellow_path + 'buteo/convolutions/')
 
 
-from osgeo import gdal
-
-ref = r"V:\2022-03-31_Stendiger_EZRA\training_data\initial_area\dem\dtm\DTM_1km_6052_661.tif"
-out = r"V:\2022-03-31_Stendiger_EZRA\training_data\initial_area\dem\hat\SOBELDTM_1km_6052_661_.tif"
-raster = gdal.Open(ref)
-bandarr = raster.GetRasterBand(1).ReadAsArray()
-npy = np.array(bandarr)
-
-result = zobel_filter(
-    npy, size=[5, 5], normalised_sobel=False, gaussian_preprocess=False
-)
-
-array_to_raster(result, reference=ref, out_path=out)
-
-end = time.time()
-print(end - start)
 
 
-# %%
+    from convolutions import *
+    from kernel_generator import *
+    from filter import *
+    # # from patch_extraction import *
+    from raster import *
+    from raster.io import *
+    import time
+
+    start = time.time()
+
+
+    from osgeo import gdal
+
+    ref = r"V:\2022-03-31_Stendiger_EZRA\training_data\initial_area\dem\dtm\DTM_1km_6052_661.tif"
+    out = r"V:\2022-03-31_Stendiger_EZRA\training_data\initial_area\dem\sobel\SOBELDTM_1km_6052_661_.tif"
+
+    import glob
+    file_list = glob.glob("V:/2022-03-31_Stendiger_EZRA/training_data/initial_area/dem/dtm/*.tif")
+    print(len(file_list), ': files to convert')
+    for ref in file_list:
+        
+        out = ref.replace("dtm", "sobel").replace("DTM", "SOBELDTM")
+        if os.path.exists(out): continue
+
+
+
+        raster = gdal.Open(ref)
+        bandarr = raster.GetRasterBand(1).ReadAsArray()
+        npy = np.array(bandarr)
+
+        result = zobel_filter(
+            npy, size=[5, 5], normalised_sobel=False, gaussian_preprocess=False
+        )
+
+        array_to_raster(result, reference=ref, out_path=out)
+
+        end = time.time()
+        print(end - start)
+
+
