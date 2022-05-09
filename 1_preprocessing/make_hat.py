@@ -81,6 +81,9 @@ DTM_1km_6049_685.tif
 """
 
 
+    dtm_dir = "V:/2022-03-31_Stendiger_EZRA/training_data/initial_area/dem/dtm/"
+    dsm_dir = "V:/2022-03-31_Stendiger_EZRA/training_data/initial_area/dem/dsm/"
+    hat_dir = "V:/2022-03-31_Stendiger_EZRA/training_data/initial_area/dem/hat/"
 
 if __name__ == "__main__":
 

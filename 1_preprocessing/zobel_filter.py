@@ -1,7 +1,3 @@
-# def zobel_filter(in_raster, size, shape, pre_process):
-
-#%%
-
 import numpy as np
 from numba import jit, prange
 
@@ -252,6 +248,7 @@ def zobel_filter(arr, size=[3, 3], normalised_sobel=False, gaussian_preprocess=F
 #%%
 # import sys
 
+    import sys; sys.path.append(yellow_path); sys.path.append(yellow_path + 'buteo/'); sys.path.append(yellow_path + 'buteo/machine_learning/'); sys.path.append(yellow_path + 'buteo/filters/'); sys.path.append(yellow_path + 'buteo/raster/'); sys.path.append(yellow_path + 'buteo/convolutions/')
 
 # yellow_path = "V:/2022-03-31_Stendiger_EZRA/buteo/"
 # # buteo_buteo_follow = "D:/buteo/"
@@ -313,7 +310,6 @@ from raster import *
 from raster.io import *
 import time
 
-start = time.time()
 
 from osgeo import gdal
 
@@ -356,4 +352,3 @@ for dtm in tiles_dtm:
     print(end - start)
 
 
-# %%
