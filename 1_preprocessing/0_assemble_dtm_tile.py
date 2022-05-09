@@ -8,6 +8,11 @@ from osgeo import ogr, gdal
 import shutil
 
 def transfer_tiles(tile_type, source_dir, dest_dir, tile_list):
+    """
+    will do this for dsm and dtm
+    Transfer tiles from source to destination directory.
+    
+    """
     if tile_type != 'dtm' or tile_type != 'dsm':
         raise ValueError('tile_type must be either dtm or dsm')
     if not os.path.exists(source_dir):
@@ -23,8 +28,8 @@ def transfer_tiles(tile_type, source_dir, dest_dir, tile_list):
     print('moving files...', 'count: ', len(tile_list))
     for tile in tile_list:
         
-        source_tif = os.path.join(tile_type, source_dir, tile_type + '_' + tile +'.tif' )
-        dest_tif = os.path.join(tile_type, dest_dir, tile_type + '_' + tile +'.tif' )
+        source_tif = os.path.join(tile_type, source_dir, tile_type + '_' + tile +'.tif')
+        dest_tif = os.path.join(tile_type, dest_dir, tile_type + '_' + tile +'.tif')
 
         if not os.path.exists(dtm_dest_tif):
             shutil.copy(source_tif, dest_tif)

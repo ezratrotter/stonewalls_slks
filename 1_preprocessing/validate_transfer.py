@@ -22,23 +22,34 @@ def validate_tile_transfer(tile_type, source_dir, dest_dir, tile_list):
         raise ValueError('tile_list must not be empty')
 
     print('validating files...', 'count: ', len(tile_list))
+    source_missing = []
+    dest_missing = []
     for tile in tile_list:
         
         source_tif = os.path.join(DTM_source_dir, tile_type + '_' + tile +'.tif' )
         dest_tif = os.path.join(DTM_destination_dir, tile_type + '_' + tile +'.tif' )
-
         if not os.path.exists(source_tif):
-            print('file didnt exist: ', source_tif)
+            # print('file didnt exist: ', source_tif)
+            source_missing.append(tile)
         if not os.path.exists(dest_tif):
-            print('file did not transfer: ', dest_tif)
-        
+            # print('file did not transfer: ', dest_tif)
+            dest_missing.append(tile)
+    import pdb; pdb.set_trace()
     print('finished')
 
 if __name__ == '__main__':
 
     km10training = gpd.read_file(r'V:\2022-03-31_Stendiger_EZRA\stonewalls_slks\data\pilot_training_data\training_10km_grid.gpkg')
+    
+    
+    
     km10training['geometry'] = km10training.apply(lambda x: x['geometry'].buffer(1), axis=1)
+
+
     km1 = gpd.read_file(r'V:\2022-03-31_Stendiger_EZRA\stonewalls_slks\data\grids\dki_1km.gpkg')
+    
+    
+    
     tile_list = gpd.overlay(km1, km10training, how='intersection')['dki_1km'].unique().tolist()
 
 
