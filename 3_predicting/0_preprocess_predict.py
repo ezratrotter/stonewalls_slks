@@ -77,7 +77,7 @@ for x in data_tiles:
     # print(image_list)
     # print(vrt)
     print(f"{count} ---")
-
+    
     gdal.BuildVRT(vrt, image_list, options=gdal.BuildVRTOptions(separate=True))
     
 

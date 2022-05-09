@@ -41,7 +41,6 @@ import shapely
 from osgeo import ogr, gdal
 import shutil
 
-<<<<<<< HEAD
 def transfer_tiles(tile_type, source_dir, dest_dir, tile_list):
     """
     will do this for dsm and dtm
@@ -58,13 +57,6 @@ def transfer_tiles(tile_type, source_dir, dest_dir, tile_list):
         raise ValueError('tile_list must be a list')
     if len(tile_list) == 0:
         raise ValueError('tile_list must not be empty')
-=======
-#%%
-km10training = gpd.read_file(r'V:\2022-03-31_Stendiger_EZRA\stonewalls_slks\data\pilot_training_data\training_10km_grid.gpkg')
-km1 = gpd.read_file(r'V:\2022-03-31_Stendiger_EZRA\stonewalls_slks\data\grids\dki_1km.gpkg')
-# km10 = gpd.read_file(r'V:\2022-03-31_Stendiger_EZRA\stonewalls_slks\data\grids\dki_10km.gpkg')
-
->>>>>>> 7ee92142917738bc2e66114898cfcb5bf7e3f8d9
 
         
     print('moving files...', 'count: ', len(tile_list))
