@@ -245,56 +245,110 @@ def zobel_filter(arr, size=[3, 3], normalised_sobel=False, gaussian_preprocess=F
     filtered = (res1 ** 2 + res2 ** 2) ** 0.5
     return filtered
 
-if __name__ == "__main__":
-    print("Starting...")
-    import sys
-
-
-    yellow_path = "D:/buteo/"
-    # buteo_buteo_follow = "D:/buteo/"
+#%%
+# import sys
 
     import sys; sys.path.append(yellow_path); sys.path.append(yellow_path + 'buteo/'); sys.path.append(yellow_path + 'buteo/machine_learning/'); sys.path.append(yellow_path + 'buteo/filters/'); sys.path.append(yellow_path + 'buteo/raster/'); sys.path.append(yellow_path + 'buteo/convolutions/')
 
+# yellow_path = "V:/2022-03-31_Stendiger_EZRA/buteo/"
+# # buteo_buteo_follow = "D:/buteo/"
+
+# import sys; sys.path.append(yellow_path); sys.path.append(yellow_path + 'buteo/'); sys.path.append(yellow_path + 'buteo/machine_learning/'); sys.path.append(yellow_path + 'buteo/filters/'); sys.path.append(yellow_path + 'buteo/raster/'); sys.path.append(yellow_path + 'buteo/convolutions/')
 
 
+# # sys.path.append(buteo_follow)
+# # sys.path.append(buteo_buteo_follow)
+# # sys.path.append(buteo_buteo_follow + "filters/")
+# # sys.path.append(buteo_buteo_follow + "machine_learning/")
+# # sys.path.append(buteo_buteo_follow + "raster/")
 
-    from convolutions import *
-    from kernel_generator import *
-    from filter import *
-    # # from patch_extraction import *
-    from raster import *
-    from raster.io import *
-    import time
+# from convolutions import *
+# from kernel_generator import *
+# from filter import *
+# # # from patch_extraction import *
+# from raster import *
+# from raster.io import *
+# import time
 
-    start = time.time()
-
-
-    from osgeo import gdal
-
-    ref = r"V:\2022-03-31_Stendiger_EZRA\training_data\initial_area\dem\dtm\DTM_1km_6052_661.tif"
-    out = r"V:\2022-03-31_Stendiger_EZRA\training_data\initial_area\dem\sobel\SOBELDTM_1km_6052_661_.tif"
-
-    import glob
-    file_list = glob.glob("V:/2022-03-31_Stendiger_EZRA/training_data/initial_area/dem/dtm/*.tif")
-    print(len(file_list), ': files to convert')
-    for ref in file_list:
-        
-        out = ref.replace("dtm", "sobel").replace("DTM", "SOBELDTM")
-        if os.path.exists(out): continue
+# start = time.time()
 
 
+# from osgeo import gdal
 
-        raster = gdal.Open(ref)
-        bandarr = raster.GetRasterBand(1).ReadAsArray()
-        npy = np.array(bandarr)
+# ref = r"V:\2022-03-31_Stendiger_EZRA\training_data\initial_area\dem\dtm\DTM_1km_6052_661.tif"
+# out = r"V:\2022-03-31_Stendiger_EZRA\training_data\initial_area\dem\hat\SOBELDTM_1km_6052_661_.tif"
+# raster = gdal.Open(ref)
+# bandarr = raster.GetRasterBand(1).ReadAsArray()
+# npy = np.array(bandarr)
 
-        result = zobel_filter(
-            npy, size=[5, 5], normalised_sobel=False, gaussian_preprocess=False
-        )
+# result = zobel_filter(
+#     npy, size=[5, 5], normalised_sobel=False, gaussian_preprocess=False
+# )
 
-        array_to_raster(result, reference=ref, out_path=out)
+# array_to_raster(result, reference=ref, out_path=out)
 
-        end = time.time()
-        print(end - start)
+# end = time.time()
+# print(end - start)
+
+
+# %%
+# if __name__ == "__main__":
+#     print("Starting...")
+import sys
+
+yellow_path = "V:/2022-03-31_Stendiger_EZRA/buteo/"
+# buteo_buteo_follow = "D:/buteo/"
+
+import sys; sys.path.append(yellow_path); sys.path.append(yellow_path + 'buteo/'); sys.path.append(yellow_path + 'buteo/machine_learning/'); sys.path.append(yellow_path + 'buteo/filters/'); sys.path.append(yellow_path + 'buteo/raster/'); sys.path.append(yellow_path + 'buteo/convolutions/')
+
+import os
+from convolutions import *
+from kernel_generator import *
+from filter import *
+# # from patch_extraction import *
+from raster import *
+from raster.io import *
+import time
+
+
+from osgeo import gdal
+
+ref = "V:/2022-03-31_Stendiger_EZRA/training_data/initial_area/dem/dtm/"
+out = "V:/2022-03-31_Stendiger_EZRA/training_data/initial_area/dem/sobel/"
+
+tiles = []
+with open("missing_tiles.txt", "r") as file:
+    for tile in file:
+        tiles.append(tile.strip())
+
+tiles_dtm = []
+for tile in tiles:
+    tile_dtm = 'DTM_' + tile + ".tif"
+    tiles_dtm.append(tile_dtm)
+
+import glob
+# file_list = glob.glob("V:/2022-03-31_Stendiger_EZRA/training_data/initial_area/dem/dtm/*.tif")
+print(len(tiles_dtm), ': files to convert')
+for dtm in tiles_dtm:
+    in_dtm = ref + dtm
+    print(in_dtm)
+    # if os.path.exists(in_dtm): continue
+    # hat_file = hat_dir + t.replace("DTM", "HAT")
+    out = ref.replace("dtm", "sobel") + dtm.replace("DTM", "SOBELDTM")
+    print(out)
+    # if os.path.exists(out): continue
+
+    raster = gdal.Open(in_dtm)
+    bandarr = raster.GetRasterBand(1).ReadAsArray()
+    npy = np.array(bandarr)
+
+    result = zobel_filter(
+        npy, size=[5, 5], normalised_sobel=False, gaussian_preprocess=False
+    )
+
+    array_to_raster(result, reference=in_dtm, out_path=out)
+
+    end = time.time()
+    print(end - start)
 
 
