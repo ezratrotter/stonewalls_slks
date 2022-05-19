@@ -12,6 +12,7 @@ import sys; sys.path.append(yellow_path); sys.path.append(yellow_path + 'buteo/'
 from buteo.raster.io import *
 from scipy import ndimage
 
+#%%
 
 km10 = gpd.read_file(r"\\niras.int\root\PROJ\10\415\217\20_Aflevering/raekkefoelge.gpkg")
 
@@ -99,8 +100,8 @@ vrt_dir = '//pc116900/S Drone div/STENDIGER/vrts/'
 
 vrts = glob.glob(vrt_dir + '*.vrt')
 
-gdal.BuildVRT('//pc116900/S Drone div/STENDIGER/vrts/merged.vrt', vrts)
-
+ds = gdal.BuildVRT('//pc116900/S Drone div/STENDIGER/vrts/merged.vrt', vrts)
+ds.FlushCache()
 
 
 #%%
