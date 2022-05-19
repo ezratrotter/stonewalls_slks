@@ -21,6 +21,9 @@ km10 = gpd.read_file(r"\\niras.int\root\PROJ\10\415\217\20_Aflevering/raekkefoel
 tiles_list = km10[km10['lev_blok'] == 1]['tilename'].tolist()
 base_path = '//pc116900/S Drone div/STENDIGER'
 
+#################################
+### MAKE HAT AND SOBEL LAYERS ###
+#################################
 
 dtm_vrt_list = []
 hat_vrt_list = []
@@ -84,6 +87,10 @@ for tile in tiles_list:
 
 #%%
 
+#################################
+##### MAKE STACKED 1KM VRTS #####
+#################################
+
 for dtm, sobel, hat in zip(dtm_vrt_list, sobel_vrt_list, hat_vrt_list,):
     if not (os.path.basename(dtm) == os.path.basename(hat).replace('HAT', 'DTM') == os.path.basename(sobel).replace('SOBEL', 'DTM')):
         ### this exception means that the contents of the folders do not match
@@ -96,11 +103,17 @@ for dtm, sobel, hat in zip(dtm_vrt_list, sobel_vrt_list, hat_vrt_list,):
     gdal.BuildVRT(vrt, [dtm, hat, sobel], options=gdal.BuildVRTOptions(separate=True))
 
 #%%
+#################################
+######## MAKE BIG VRT ###########
+#################################
 vrt_dir = '//pc116900/S Drone div/STENDIGER/vrts/'
 
 vrts = glob.glob(vrt_dir + '*.vrt')
 
-ds = gdal.BuildVRT('//pc116900/S Drone div/STENDIGER/vrts/merged.vrt', vrts)
+## extent of whole Danmark 10km tiles (land)
+[xmax, xmin, ymax, ymin] = [900000, 440000, 6410000, 6040000]
+
+ds = gdal.BuildVRT('//pc116900/S Drone div/STENDIGER/vrts/merged.vrt', vrts, options=gdal.BuildVRTOptions(outputBounds=(xmin, ymin, xmax, ymax)))
 ds.FlushCache()
 
 
