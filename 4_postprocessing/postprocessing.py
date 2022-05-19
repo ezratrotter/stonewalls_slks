@@ -106,25 +106,12 @@ mask =  [[False, True, False], [True, True, True], [False, True, False]]
 mask2 =  [[True, True, True], [True, True, True], [True, True, True]]
 
 
-# channel0 = ndimage.binary_opening(channel, mask2).astype(int)
+
 
 # channel1 = ndimage.binary_dilation(channel, mask2, iterations=5).astype(int)
 # channel1 = ndimage.binary_erosion(channel1, mask2, iterations=5).astype(int)
 
-# channel2 = ndimage.binary_dilation(channel, mask2, iterations=10).astype(int)
-# channel2 = ndimage.binary_erosion(channel2, mask2, iterations=10).astype(int)
 
-# channel3 = ndimage.binary_dilation(channel, mask2, iterations=15).astype(int)
-# channel3 = ndimage.binary_erosion(channel3, mask2, iterations=15).astype(int)
-
-# channel4 = ndimage.binary_dilation(channel, mask, iterations=5).astype(int)
-# channel4 = ndimage.binary_erosion(channel4, mask, iterations=5).astype(int)
-
-# channel5 = ndimage.binary_dilation(channel, mask, iterations=10).astype(int)
-# channel5 = ndimage.binary_erosion(channel5, mask, iterations=10).astype(int)
-
-# channel6 = ndimage.binary_dilation(channel, mask, iterations=15).astype(int)
-# channel6 = ndimage.binary_erosion(channel6, mask, iterations=15).astype(int)
 
 
 

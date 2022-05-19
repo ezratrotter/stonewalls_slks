@@ -21,7 +21,7 @@ tiles_gdf = gpd.overlay(km1, km10, how='intersection')
 tiles_list = tiles_gdf['dki_1km'].tolist()
 
 
-tiles_list = tiles_list[:5]
+tiles_list = tiles_list[:10]
 
 cp1 = time.perf_counter()
 
@@ -62,7 +62,7 @@ for i,t in enumerate(tiles_list):
     if not os.path.isfile(dest_DSM):
         shutil.copy(source_DSM, dest_DSM)
 
-    if (i+1)%10 == 0:
+    if (i)%10 == 0:
     # print progress
         print('{}/{}'.format(i - len(tiles_list), i))
 
@@ -100,13 +100,13 @@ print('time to transfer tiles: ', cp2 - cp1)
 #%%
 ############################################################################################
 #######################################################################
-#######################################################################
+####################GET ALL CURRENT TILES IN THE FOLDERS#######################
 #######################################################################
 #######################################################################
 
 ### run this if the tiles have already been transferred
 import glob
-
+dest_dir = 'V:/2022-03-31_Stendiger_EZRA/data/'
 dtm_tifs = glob.glob('{}dtm/*.tif'.format(dest_dir))
 dsm_tifs = glob.glob('{}dsm/*.tif'.format(dest_dir))
 
@@ -123,26 +123,16 @@ print('all tiles are present')
 
 #%%
 ############################################################################################
-#######################################################################
+##############CREATE HAT AND SOBEL FILTERS####################
 #######################################################################
 from osgeo import ogr, gdal
 import numpy as np
 from zobel_filter import zobel_filter
 
-
-yellow_path = "C:/buteo/"
-
+yellow_path = "V:/2022-03-31_Stendiger_EZRA/buteo"
 import sys; sys.path.append(yellow_path); sys.path.append(yellow_path + 'buteo/'); sys.path.append(yellow_path + 'buteo/machine_learning/'); sys.path.append(yellow_path + 'buteo/filters/'); sys.path.append(yellow_path + 'buteo/raster/'); sys.path.append(yellow_path + 'buteo/convolutions/')
-
-import os
-from convolutions import *
-from kernel_generator import *
-from filter import *
-# # from patch_extraction import *
-from raster import *
-from raster.io import *
-import time
-
+from buteo.raster.io import *
+from scipy import ndimage
 
 for dsm, dtm in zip(dsm_tifs, dtm_tifs):
 
@@ -155,27 +145,53 @@ for dsm, dtm in zip(dsm_tifs, dtm_tifs):
     dtm_npy = np.array(dtm_bandarr)
 
 
-    sobel = zobel_filter(
-            dtm_npy, size=[5, 5], normalised_sobel=False, gaussian_preprocess=False
-        )
-    hat = dsm_npy - dtm_npy
-    
-    sobel_path = 'V:/2022-03-31_Stendiger_EZRA/data/sobel/' + dtm.replace('DTM', 'SOBEL')
-    hat_path = 'V:/2022-03-31_Stendiger_EZRA/data/hat/' + dtm.replace('DTM', 'HAT')
-    print(sobel.shape, hat.shape)
-    print(sobel_path, hat_path)
-    
-    array_to_raster(sobel, reference=dtm, out_path=sobel_path)
-    array_to_raster(hat, reference=dtm, out_path=hat_path)
+    # sobel_npy = zobel_filter(
+    #         dtm_npy, size=[5, 5], normalised_sobel=False, gaussian_preprocess=False
+    #     )
+    hat_npy = dsm_npy - dtm_npy
+    sobel_npy = ndimage.sobel(dtm_npy, axis=-1, mode='constant', cval=0)
+
+    sobel_path = dtm.replace('DTM', 'SOBEL1').replace('dtm', 'sobel')
+    hat_path = dtm.replace('DTM', 'HAT').replace('dtm', 'hat')
+
+    array_to_raster(sobel_npy, reference=dtm, out_path=sobel_path, creation_options=["COMPRESS=LZW"])
+    array_to_raster(hat_npy, reference=dtm, out_path=hat_path, creation_options=["COMPRESS=LZW"])
     print('done with', dtm)
 
-# create vrt's
+# # create vrt's
 # 
-# create numpy arrays?
+#%%
+### run this if the tiles have already been transferred and hat and sobel have been made
+import glob
+
+dest_dir = 'V:/2022-03-31_Stendiger_EZRA/data/'
+dtm_tifs = glob.glob('{}dtm/*.tif'.format(dest_dir))
+dsm_tifs = glob.glob('{}dsm/*.tif'.format(dest_dir))
+hat_tifs = glob.glob('{}hat/*.tif'.format(dest_dir))
+sobel_tifs = glob.glob('{}sobel/*.tif'.format(dest_dir))
+
+dtm_tifs.sort()
+dsm_tifs.sort()
+hat_tifs.sort()
+sobel_tifs.sort()
 
 
+for dtm, dsm, hat, sobel in zip(dtm_tifs, dsm_tifs, hat_tifs, sobel_tifs):
+    if not (os.path.basename(dtm) == os.path.basename(dsm).replace('DSM', 'DTM') == os.path.basename(hat).replace('HAT', 'DTM') == os.path.basename(sobel).replace('SOBEL', 'DTM')):
+        ### this exception means that the contents of the folders do not match
+        raise Exception("catastrphic error")
+
+    t = os.path.basename(dtm).replace('DTM_', '').replace('.tif', '.vrt')
+    vrt = 'V:/2022-03-31_Stendiger_EZRA/data/vrts/' + t
+    print(vrt)  
+
+    gdal.BuildVRT(vrt, [dtm, hat, sobel], options=gdal.BuildVRTOptions(separate=True))
 
 
-
+cp3 = time.perf_counter()
+print('time to create vrts: ', cp3 - cp2)
+print('total time: ', cp3 - start)
 
 # %%
+
+
