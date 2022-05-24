@@ -3,7 +3,7 @@ _whl/GDAL-3.1.4-cp38-cp38-win_amd64.whl
 _whl/pyproj-3.0.0.post1-cp38-cp38-win_amd64.whl
 _whl/Rtree-0.9.4-cp38-cp38-win_amd64.whl
 _whl/Shapely-1.7.1-cp38-cp38-win_amd64.whl
-
+_whl/tensorflow-2.6.0-cp38-cp38-win_amd64.whl
 
 numba
 numpy
@@ -18,3 +18,19 @@ black
 sqlalchemy
 psycopg2
 opencv-python
+wheel
+ipykernel
+autopep8
+owslib
+imageio
+SQLAlchemy
+GeoAlchemy2
+pymssql
+pyodbc
+xlsxwriter
+openpyxl
+
+tensorflow-estimator==2.6.0
+keras==2.6.0
+
+
