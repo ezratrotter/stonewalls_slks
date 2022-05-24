@@ -18,3 +18,4 @@ black
 sqlalchemy
 psycopg2
 opencv-python
+keras==2.60
