@@ -1,9 +1,10 @@
-#%%
+# %%
 import scipy
 import os
 from glob import glob
 from osgeo import gdal, ogr, gdalconst
 import tensorflow as tf
+from keras.layers import LayerNormalization
 from tensorflow.keras.models import load_model
 from tensorflow.keras.utils import get_custom_objects
 import segmentation_models as sm
@@ -15,12 +16,11 @@ import keras.backend as K
 import keras
 
 
-
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
-gpu_devices = tf.config.experimental.list_physical_devices('GPU')
-for device in gpu_devices:
-    tf.config.experimental.set_memory_growth(device, True)
+# gpu_devices = tf.config.experimental.list_physical_devices('GPU')
+# for device in gpu_devices:
+#     tf.config.experimental.set_memory_growth(device, True)
 
 # os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'true'
 # # sm.set_framework('tf.keras')
@@ -32,6 +32,7 @@ for device in gpu_devices:
 # device_lib.list_local_devices()
 
 ####functions###
+
 
 def read_raster(model_raster_fname):
     model_dataset = gdal.Open(model_raster_fname)
@@ -73,7 +74,7 @@ def write_raster(image, fn_raster, fn_output):
         band = target_ds.GetRasterBand(1)
         band.SetNoDataValue(NoData_value)
         band.FlushCache()
-        band.WriteArray(image)
+        band.WriteArray(image[:, :, 0])
 
     #target_ds.BuildOverviews("NEAREST", [2,4,8,16,32,64,128])
     target_ds = None
@@ -493,8 +494,9 @@ def smooth_vrt_predictions(model, vrt_filename, output_filename, options):
             idx += 1
 
     full_weighted = np.divide(sum_aw, sum_w)
+    bin_full_weighted = np.where(full_weighted > 0.1, 1, full_weighted)
 
-    write_raster(full_weighted, vrt_filename, output_filename)
+    write_raster(bin_full_weighted, vrt_filename, output_filename)
 
 
 # km10_path = "R:/PROJ/10/415/217/20_Aflevering/raekkefoelge.gpkg"
@@ -572,33 +574,35 @@ custom_objects = {
 model = load_model(model_path + 'model.25-0.832-0.190-0.984.h5',
                    custom_objects=custom_objects)
 
+vrt_filename = glob(
+    '//pc116900/S Drone div/STENDIGER/vrts/10km/*.vrt')
 
-vrt_filename = '//pc116900/S Drone div/STENDIGER/vrts/10km/10km_608_48.vrt'
-output_filename = 'R:/PROJ/10/415/217/20_Aflevering/lev2/test_tile.tif'
+for idx, vrt in enumerate(vrt_filename, start=1):
+    output_name = os.path.basename(vrt).replace('vrt', 'tif')
+    output_filename = f'R:/PROJ/10/415/217/20_Aflevering/leverance_1/{output_name}'
 
-options = {
-    'n_bands_x': 3,  # rgb = 3
-    'n_classes': 2,
-    'patch_size': 64,
-    'overlap': 2,
-    'batch_size': 128,
-    'steps_per_predict': 32,
-    'sigmoid_width': 3,
-    'sigmoid_steepness': 7
-}
+    options = {
+        'n_bands_x': 3,
+        'n_classes': 2,
+        'patch_size': 64,
+        'overlap': 2,
+        'batch_size': 128,
+        'steps_per_predict': 128,
+        'sigmoid_width': 3,
+        'sigmoid_steepness': 7
+    }
+    print(f"predicting {output_name}... --> ({idx})")
+    smooth_vrt_predictions(model, vrt, output_filename, options)
 
-smooth_vrt_predictions(model, vrt_filename, output_filename, options)
+print("Done, all vrts predicted.")
 
-
-
-
-#%%
+# %%
 # ###generate tiles from 10km and patches for prediction
 # tiles_path = glob('V:/2022-03-31_Stendiger_EZRA/training_data/initial_area/dem/vrt10km_pilotarea/*.vrt')
 # # tile = tiles_path + '/stack_10km_614_67.vrt'
 # out_dir = "R:/PROJ/10/415/217/20_Aflevering/pilot_area/"
 
-# import gc 
+# import gc
 # import keras
 # import keras.backend as K
 
@@ -623,7 +627,7 @@ smooth_vrt_predictions(model, vrt_filename, output_filename, options)
 #     for idx, (patches, rng_x, rng_y, im_sz) in enumerate(patch_gen):
 #         y = model.predict(patches, batch_size=512, verbose=1)
 #         K.clear_session()
-        
+
 #         all_y.append( (y,rng_x, rng_y, im_sz))
 
 #         print(idx)
@@ -641,7 +645,7 @@ smooth_vrt_predictions(model, vrt_filename, output_filename, options)
 #     result = []
 #     full = np.zeros((25000,25000))
 
-#     result = [] 
+#     result = []
 #     for idx, _ in enumerate(y_tile):
 #         # print(idx)
 #         res = clip_tile(y_tile[idx], ranges[idx])
@@ -651,9 +655,9 @@ smooth_vrt_predictions(model, vrt_filename, output_filename, options)
 #     # print([v.shape for v in result])
 
 #     ##write raster 10km tile from array
-   
 
-#     #ref raster - vrt 
+
+#     #ref raster - vrt
 #     # tile = r'V:\2022-03-31_Stendiger_EZRA\training_data\initial_area\dem\vrt\km10\dtm_10km_614_67.vrt'
 
 #     out_tif = tile.split('\\')[1].split('.')[0] + ".tif"
