@@ -421,8 +421,12 @@ def createBuffer(inputfn, outputBufferfn, bufferDist):
         bufferlyr.CreateFeature(outFeature)
         outFeature = None
 
-
+#%%
 def smooth_vrt_predictions(model, vrt_filename, output_filename, options):
+    print('test')
+    if not os.path.isfile(vrt_filename):
+        print(vrt_filename)
+        raise Exception("VRT file does not exist")
     # Create tf.dataset from generator that iterates over vrt
     ds = gdal.Open(vrt_filename)
 
@@ -497,7 +501,7 @@ def smooth_vrt_predictions(model, vrt_filename, output_filename, options):
     bin_full_weighted = np.where(full_weighted > 0.1, 1, full_weighted)
 
     write_raster(bin_full_weighted, vrt_filename, output_filename)
-
+#%%
 
 # km10_path = "R:/PROJ/10/415/217/20_Aflevering/raekkefoelge.gpkg"
 # driver = ogr.GetDriverByName('gpkg')
@@ -575,10 +579,11 @@ model = load_model(model_path + 'model.25-0.832-0.190-0.984.h5',
                    custom_objects=custom_objects)
 
 vrt_filename = glob(
-    '//pc116900/S Drone div/STENDIGER/vrts/10km/*.vrt')
-
+    '//pc116900/S Drone div/STENDIGER/vrts/10km/r_1/*.vrt')
+#%%
 for idx, vrt in enumerate(vrt_filename, start=1):
     output_name = os.path.basename(vrt).replace('vrt', 'tif')
+
     output_filename = f'R:/PROJ/10/415/217/20_Aflevering/leverance_1/{output_name}'
 
     options = {
@@ -598,82 +603,82 @@ print("Done, all vrts predicted.")
 
 # %%
 # ###generate tiles from 10km and patches for prediction
-# tiles_path = glob('V:/2022-03-31_Stendiger_EZRA/training_data/initial_area/dem/vrt10km_pilotarea/*.vrt')
-# # tile = tiles_path + '/stack_10km_614_67.vrt'
-# out_dir = "R:/PROJ/10/415/217/20_Aflevering/pilot_area/"
+tiles_path = glob('V:/2022-03-31_Stendiger_EZRA/training_data/initial_area/dem/vrt10km_pilotarea/*.vrt')
+# tile = tiles_path + '/stack_10km_614_67.vrt'
+out_dir = "R:/PROJ/10/415/217/20_Aflevering/pilot_area/"
 
-# import gc
-# import keras
-# import keras.backend as K
-
-
-# for tile in tiles_path:
-#     if not os.path.exists(tile):
-#         print(f"{tile} does not exist!!")
-#         break
-
-#     if os.path.exists(out_dir + tile.split('\\')[1].split('.')[0] + ".tif"):
-#         print(f"skipping {tile}, already exists")
-#         continue
-
-#     ds = gdal.Open(tile)
-#     print(f"generating tiles and patches for {tile}...")
-#     vrt_gen = vrt_tile_generator(tile, 5000, 64)
-#     patch_gen = patch_generator(vrt_gen, 64)
-
-#     ##for each tile generated, predict for all patches
-#     print(f"predicting {tile}...")
-#     all_y = []
-#     for idx, (patches, rng_x, rng_y, im_sz) in enumerate(patch_gen):
-#         y = model.predict(patches, batch_size=512, verbose=1)
-#         K.clear_session()
-
-#         all_y.append( (y,rng_x, rng_y, im_sz))
-
-#         print(idx)
-
-#     all_y2 = [ ((v>0.1).astype(np.int32), rng_x, rng_y, im_sz) for (v, rng_x, rng_y, im_sz) in all_y]
-
-#     ###restore image tiles from patches
-#     y_tile = [restore_image_from_tiles(y2, rng_x, rng_y, im_sz, 2) for (y2, rng_x, rng_y, im_sz) in all_y2]
-
-#     ##check ranges (buffers), correct tiles size to original tiles (5000x5000), without the buffer
-#     ##result is array of arrays
-
-#     ranges = vrt_tile_ranges(tile, 5000, 64)
-
-#     result = []
-#     full = np.zeros((25000,25000))
-
-#     result = []
-#     for idx, _ in enumerate(y_tile):
-#         # print(idx)
-#         res = clip_tile(y_tile[idx], ranges[idx])
-#         result.append(res)
-
-#     print(f'done clipping for {tile}')
-#     # print([v.shape for v in result])
-
-#     ##write raster 10km tile from array
+import gc
+import keras
+import keras.backend as K
 
 
-#     #ref raster - vrt
-#     # tile = r'V:\2022-03-31_Stendiger_EZRA\training_data\initial_area\dem\vrt\km10\dtm_10km_614_67.vrt'
+for tile in tiles_path:
+    if not os.path.exists(tile):
+        print(f"{tile} does not exist!!")
+        break
 
-#     out_tif = tile.split('\\')[1].split('.')[0] + ".tif"
-#     print(f"writing raster {out_tif}...")
-#     write_data_as_raster_list([full], tile, out_dir + out_tif)
+    if os.path.exists(out_dir + tile.split('\\')[1].split('.')[0] + ".tif"):
+        print(f"skipping {tile}, already exists")
+        continue
 
-#     ds = None
-#     del full, y_tile, all_y, all_y2
+    ds = gdal.Open(tile)
+    print(f"generating tiles and patches for {tile}...")
+    vrt_gen = vrt_tile_generator(tile, 5000, 64)
+    patch_gen = patch_generator(vrt_gen, 64)
 
-#     gc.collect()
-#     if not os.path.exists(out_dir + out_tif):
-#         print("no output created!")
-#         break
+    ##for each tile generated, predict for all patches
+    print(f"predicting {tile}...")
+    all_y = []
+    for idx, (patches, rng_x, rng_y, im_sz) in enumerate(patch_gen):
+        y = model.predict(patches, batch_size=512, verbose=1)
+        K.clear_session()
+
+        all_y.append( (y,rng_x, rng_y, im_sz))
+
+        print(idx)
+
+    all_y2 = [ ((v>0.1).astype(np.int32), rng_x, rng_y, im_sz) for (v, rng_x, rng_y, im_sz) in all_y]
+
+    ###restore image tiles from patches
+    y_tile = [restore_image_from_tiles(y2, rng_x, rng_y, im_sz, 2) for (y2, rng_x, rng_y, im_sz) in all_y2]
+
+    ##check ranges (buffers), correct tiles size to original tiles (5000x5000), without the buffer
+    ##result is array of arrays
+
+    ranges = vrt_tile_ranges(tile, 5000, 64)
+
+    result = []
+    full = np.zeros((25000,25000))
+
+    result = []
+    for idx, _ in enumerate(y_tile):
+        # print(idx)
+        res = clip_tile(y_tile[idx], ranges[idx])
+        result.append(res)
+
+    print(f'done clipping for {tile}')
+    # print([v.shape for v in result])
+
+    ##write raster 10km tile from array
 
 
-# print("all tiles predicted and saved!")
+    #ref raster - vrt
+    # tile = r'V:\2022-03-31_Stendiger_EZRA\training_data\initial_area\dem\vrt\km10\dtm_10km_614_67.vrt'
+
+    out_tif = tile.split('\\')[1].split('.')[0] + ".tif"
+    print(f"writing raster {out_tif}...")
+    write_data_as_raster_list([full], tile, out_dir + out_tif)
+
+    ds = None
+    del full, y_tile, all_y, all_y2
+
+    gc.collect()
+    if not os.path.exists(out_dir + out_tif):
+        print("no output created!")
+        break
 
 
-# # %%
+print("all tiles predicted and saved!")
+
+
+# %%
