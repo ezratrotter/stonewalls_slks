@@ -579,13 +579,19 @@ model = load_model(model_path + 'model.25-0.832-0.190-0.984.h5',
                    custom_objects=custom_objects)
 
 vrt_filename = glob(
-    '//pc116900/S Drone div/STENDIGER/vrts/10km/r_1/*.vrt')
+    '//pc116900/S Drone div/STENDIGER/vrts/10kmv2/ezra/*.vrt')
 #%%
 for idx, vrt in enumerate(vrt_filename, start=1):
+    
+    # if os.path.basename(vrt) != '10km_608_47.vrt':
+    #     print(vrt, 'skipped')
+    #     continue
+    if not os.path.exists(vrt):
+        raise Exception(f"{vrt} does not exist")
     output_name = os.path.basename(vrt).replace('vrt', 'tif')
-
     output_filename = f'R:/PROJ/10/415/217/20_Aflevering/leverance_1/{output_name}'
-
+    if not os.path.isdir('R:/PROJ/10/415/217/20_Aflevering/leverance_1/'):
+        raise Exception(f"{output_filename} does not exist")
     options = {
         'n_bands_x': 3,
         'n_classes': 2,
@@ -596,9 +602,13 @@ for idx, vrt in enumerate(vrt_filename, start=1):
         'sigmoid_width': 3,
         'sigmoid_steepness': 7
     }
+    
     print(f"predicting {output_name}... --> ({idx})")
-    smooth_vrt_predictions(model, vrt, output_filename, options)
-
+    try:
+        smooth_vrt_predictions(model, vrt, output_filename, options)
+    except:
+        print(f"{output_name} failed")
+        continue
 print("Done, all vrts predicted.")
 
 # %%

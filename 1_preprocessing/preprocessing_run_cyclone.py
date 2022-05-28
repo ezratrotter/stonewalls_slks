@@ -6,9 +6,10 @@ import time
 from osgeo import ogr, gdal
 import numpy as np
 from zobel_filter import zobel_filter
+from pathlib import Path
 
-# yellow_path = "V:/2022-03-31_Stendiger_EZRA/buteo"
-yellow_path = "E:/STENDIGER/buteo"
+
+yellow_path = "V:/2022-03-31_Stendiger_EZRA/buteo"
 import sys; sys.path.append(yellow_path); sys.path.append(yellow_path + 'buteo/'); sys.path.append(yellow_path + 'buteo/machine_learning/'); sys.path.append(yellow_path + 'buteo/filters/'); sys.path.append(yellow_path + 'buteo/raster/'); sys.path.append(yellow_path + 'buteo/convolutions/')
 from buteo.raster.io import *
 from scipy import ndimage
@@ -21,7 +22,7 @@ km10 = gpd.read_file(r"\\niras.int\root\PROJ\10\415\217\20_Aflevering/raekkefoel
 
 tiles_list = km10[km10['lev_blok'] == 1]['tilename'].tolist()
 base_path = '//pc116900/S Drone div/STENDIGER'
-#%%
+
 ################################
 ## MAKE HAT AND SOBEL LAYERS ###
 ################################
@@ -36,8 +37,8 @@ for tile in tiles_list:
     dsm_folder = '{}/DSM/{}_TIF_UTM32-ETRS89/'.format(base_path, tile.replace('10km', 'DSM'))
     dtm_folder = '{}/DTM/{}_TIF_UTM32-ETRS89/'.format(base_path, tile.replace('10km', 'DTM'))
     hat_folder = dtm_folder.replace('DTM', 'HAT')
-    # sobel_folder = dtm_folder.replace('DTM', 'SOBEL')
-    sobel_folder = base_path + '/SOBEL/'
+    sobel_folder = dtm_folder.replace('DTM', 'SOBEL')
+    
     # print(hat_folder)
     # print(sobel_folder)
     if not os.path.exists(hat_folder):
@@ -57,9 +58,9 @@ for tile in tiles_list:
     # print('all tiles are present')
     for dsm, dtm in zip(dsm_tifs, dtm_tifs):
 
-        # dsm_raster = gdal.Open(dsm)
-        # dsm_bandarr = dsm_raster.GetRasterBand(1).ReadAsArray()
-        # dsm_npy = np.array(dsm_bandarr)
+        dsm_raster = gdal.Open(dsm)
+        dsm_bandarr = dsm_raster.GetRasterBand(1).ReadAsArray()
+        dsm_npy = np.array(dsm_bandarr)
 
         dtm_raster = gdal.Open(dtm)
         dtm_bandarr = dtm_raster.GetRasterBand(1).ReadAsArray()
@@ -69,31 +70,29 @@ for tile in tiles_list:
         sobel_npy = zobel_filter(
                 dtm_npy, size=[5, 5], normalised_sobel=False, gaussian_preprocess=False
             )
-        if (sobel_npy.sum() == 0):
-            print('warning')
+
         # sobel_npy = ndimage.sobel(dtm_npy, axis=-1, mode='constant', cval=0)
 
-        # hat_npy = dsm_npy - dtm_npy
+        hat_npy = dsm_npy - dtm_npy
 
         sobel_path = dtm.replace('DTM', 'SOBEL')
-        sobel_path = sobel_folder+os.path.basename(sobel_path)
-        # hat_path = dtm.replace('DTM', 'HAT')
+        hat_path = dtm.replace('DTM', 'HAT')
 
         array_to_raster(sobel_npy, reference=dtm, out_path=sobel_path, creation_options=["COMPRESS=LZW"])
-        # array_to_raster(hat_npy, reference=dtm, out_path=hat_path, creation_options=["COMPRESS=LZW"])
+        array_to_raster(hat_npy, reference=dtm, out_path=hat_path, creation_options=["COMPRESS=LZW"])
         
         dtm_vrt_list.append(dtm)
-        # hat_vrt_list.append(hat_path)
+        hat_vrt_list.append(hat_path)
         sobel_vrt_list.append(sobel_path)
         
         print('done with', dtm)
 
-# #%%
+#%%
 
-# for dtm, sobel, hat in zip(dtm_vrt_list, sobel_vrt_list, hat_vrt_list,):
-#     if not (os.path.basename(dtm) == os.path.basename(hat).replace('HAT', 'DTM') == os.path.basename(sobel).replace('SOBEL', 'DTM')):
-#         ### this exception means that the contents of the folders do not match
-#         raise Exception("catastrphic error")
+for dtm, sobel, hat in zip(dtm_vrt_list, sobel_vrt_list, hat_vrt_list,):
+    if not (os.path.basename(dtm) == os.path.basename(hat).replace('HAT', 'DTM') == os.path.basename(sobel).replace('SOBEL', 'DTM')):
+        ### this exception means that the contents of the folders do not match
+        raise Exception("catastrphic error")
 #################################
 ##### MAKE STACKED 1KM VRTS #####
 #################################
@@ -195,79 +194,25 @@ tiles_list = km10[km10['lev_blok'] == 1]['geometry'].tolist()
 # buffered_tiles_list = [x.buffer(100.0) for x in tiles_list]
 
 # onekm = gpd.read_file(r'\\Niras.int\root\PROJ\10\415\217\20_Aflevering\dki_1km_lev1_buffered.gpkg')['dki_1km'].tolist()
-# formatted_onekm = ['DTM_{}.tif'.format(x) for x in onekm]
+formatted_onekm = ['DTM_{}.tif'.format(x) for x in onekm]
 #%%
 
 
-dtm_list = [str(x) for x in Path('//pc116900/S Drone div/STENDIGER/DTM').rglob('*.tif')]
-# dsm_list = [str(x) for x in Path('//pc116900/S Drone div/STENDIGER/DSM').rglob('*.tif') if x.name in formatted_onekm]
+dtm_list = [str(x) for x in Path('//pc116900/S Drone div/STENDIGER/DTM').rglob('*.tif') if x.name in formatted_onekm]
+dsm_list = [str(x) for x in Path('//pc116900/S Drone div/STENDIGER/DSM').rglob('*.tif') if x.name in formatted_onekm]
 
 #%%
 dest_sobel_list = [str(x) for x in Path('//pc116900/S Drone div/STENDIGER/SOBEL').rglob('*.tif')]
-sobel_list = [os.path.basename(x) for x in dest_sobel_list]
 dest_hat_list = [str(x) for x in Path('//pc116900/S Drone div/STENDIGER/HAT').rglob('*.tif')]
 
 
 #%%
-# dtm_list_filtered = [x for x in dtm_list if x.replace('DTM', 'SOBEL') in dest_sobel_list]
-dtm_list_filtered = [x for x in dtm_list if os.path.basename(x).replace('DTM', 'SOBEL') in sobel_list]
-hat_list_filtered = [x for x in dest_hat_list if os.path.basename(x).replace('HAT', 'SOBEL') in sobel_list]
-
-# dsm_list_filtered = [x for x in dtm_list if x.replace('DSM', 'SOBEL') not in dest_sobel_list]
+dtm_list_filtered = [x for x in dtm_list if x.replace('DTM', 'SOBEL') not in dest_sobel_list]
+dsm_list_filtered = [x for x in dtm_list if x.replace('DSM', 'SOBEL') not in dest_sobel_list]
 
 
-#%%
 
-tiles = [x.split('SOBEL_')[1] for x in sobel_list]
-tiles
-
-for t in tiles:
-    dtm = [x for x in dtm_list_filtered if t in x]
-    if len(dtm) != 1:
-        raise Exception
-    
-    dtm = dtm[0]
-    sobel = [x for x in dest_sobel_list if t in x]
-    if len(sobel) != 1:
-        raise Exception
-    sobel = sobel[0]
-    hat = [x for x in hat_list_filtered if t in x]
-    if len(hat) != 1:
-        raise Exception
-    hat = hat[0]
-    print
-
-    vrtdir = '//pc116900/S Drone div/STENDIGER/vrts/'
-    if os.path.exists(vrtdir + t + '.vrt'):
-        print('already exists')
-        continue
-
-    
-    gdal.BuildVRT(vrtdir + t.replace('.tif', '.vrt'), [dtm, hat, sobel], separate=True)
 # base_path = '//pc116900/S Drone div/STENDIGER'
-#%%
-km10 = gpd.read_file(r"\\niras.int\root\PROJ\10\415\217\20_Aflevering/raekkefoelge.gpkg")
-km10 = km10[km10['lev_blok'] == 1]
-#%%
-km1 = gpd.read_file("../data/grids/dki_1km.gpkg")
-nameDict = {}
-for i, row10 in km10.iterrows():
-    name10k = row10['tilename']
-    nameDict[name10k] = km1[km1['dki_10km'] == name10k]['dki_1km'].tolist()
-    
-    # for j, row1 in km1.iterrows():
-    #     if row1['dki_10km'] == name10k:
-    #         myDict[name10k].append(row1['dki_1km'])
-
-vrts_path = 'E:/STENDIGER/vrts/'
-for k,v in nameDict.items():
-    vrts = [vrts_path + x + '.vrt' for x in v]
-    km10name = vrts_path +'10kmv2/' + k + '.vrt'
-    print(km10name)
-    print(vrts)
-    # break
-    gdal.BuildVRT(km10name, vrts, separate=True)
-
 
 #%%
 # ### run this if the tiles have already been transferred
@@ -335,7 +280,10 @@ for dsm, dtm in zip(dsm_list_filtered, dtm_list_filtered):
 
 sobel_list = [str(x).replace('\\', '/') for x in Path('//pc116900/S Drone div/STENDIGER/SOBEL').rglob('*.tif')]
 hat_list = [str(x).replace('\\', '/') for x in Path('//pc116900/S Drone div/STENDIGER/HAT').rglob('*.tif')]
-dtm_big_list = [str(x).replace('\\', '/') for x in Path('//pc116900/S Drone div/STENDIGER/DTM').rglob('*.tif')]
+# dtm_big_list = [str(x).replace('\\', '/') for x in Path('//pc116900/S Drone div/STENDIGER/DTM').rglob('*.tif')]
+
+# vrts_list = [str(x).replace('\\', '/') for x in Path('//pc116900/S Drone div/STENDIGER/vrts').rglob('*.vrt')]
+vrts_list = [x for x in glob.glob('//pc116900/S Drone div/STENDIGER/vrts/*.vrt')]
 #%%
 
 # buff10gdf = gpd.read_file(r'\\Niras.int\root\PROJ\10\415\217\20_Aflevering\lev1_10kmbuffered.gpkg') 
@@ -388,7 +336,7 @@ for i, row in km10.iterrows():
             if len(hat) != 1:
                 raise Exception
             hat = hat[0]
-            myDict[km10][t] = [dtm, hat, sobel]
+            myDict[km10][t] = [dtm, sobel, hat]
      
 
 
@@ -520,6 +468,128 @@ cp3 = time.perf_counter()
 print('time to create vrts: ', cp3 - cp2)
 print('total time: ', cp3 - start)
 
+
+#%%
+import glob
+import geopandas as gpd
+import shutil
+import time
+from osgeo import ogr, gdal
+import numpy as np
+from zobel_filter import zobel_filter
+from pathlib import Path
+
+
+yellow_path = "V:/2022-03-31_Stendiger_EZRA/buteo"
+import sys; sys.path.append(yellow_path); sys.path.append(yellow_path + 'buteo/'); sys.path.append(yellow_path + 'buteo/machine_learning/'); sys.path.append(yellow_path + 'buteo/filters/'); sys.path.append(yellow_path + 'buteo/raster/'); sys.path.append(yellow_path + 'buteo/convolutions/')
+from buteo.raster.io import *
+from scipy import ndimage
+
+def getExtent(geometry):
+    coords = geometry.exterior.coords
+    xmin = float('inf')
+    ymin = float('inf')
+    xmax = 0
+    ymax = 0
+    for (x, y) in coords:
+        if x < xmin:
+            xmin = x
+        if y < ymin:
+            ymin = y
+        if x > xmax:
+            xmax = x
+        if y > ymax:
+            ymax = y
+    return (xmin, ymin, xmax, ymax)
+
+#read in 10km tiles
+#get list of tiles I want
+leverance_nr = 2
+rdrive_base = '//Niras.int/root\PROJ/10/415/217/20_Aflevering'
+rleverance = rdrive_base + 'leverance_{}/'.format(leverance_nr)
+vdrive_base = '//pc116900/S Drone div/STENDIGER/'
+vtemp = vdrive_base + 'temp_{}/'.format(leverance_nr)
+
+if not os.path.isdir(rleverance):
+    print('creating leverance dir...')
+    os.mkdir(rleverance)
+if not os.path.isdir(vtemp):
+    print('creating vtemp dir...')
+    os.mkdir(vtemp)
+
+
+km10_df = gpd.read_file(r"\\niras.int\root\PROJ\10\415\217\20_Aflevering/raekkefoelge.gpkg")
+km10_list = km10_df[km10_df['lev_blok'] == leverance_nr]['tilename'].tolist()
+km1_df = gpd.read_file("../data/grids/dki_1km.gpkg")
+
+print('assembling list of dtm files...')
+dtm_list = [x for x in Path('//pc116900/S Drone div/STENDIGER/DTM').rglob('*.tif')]
+print('list of dtm files assembled!')
+
+for tile10km in km10_list:
+    print('starting proceduce for {}...'.format(tile10km))
+    km1_namelist = km1_df[km1_df['dki_10km'] == tile10km]['dki_1km'].tolist()
+    dtm_list_this10km = [str(x) for x in dtm_list if x.name == tile10km + '.tif']
+    dsm_list_this10km = [x.replace('DTM', 'DSM').replace('dtm', 'dsm') for x in dtm_list_this10km]
+    
+    for dtm, dsm in zip(dtm_list_this10km, dsm_list_this10km):
+        if not os.path.isfile(dtm) or not os.path.isfile(dsm):
+            raise Exception("catastrphic error", dtm, dsm)
+    print('dtm and dsm files confirmed!')
+        
+    print('creating HAT, SOBEL and VRT files...')
+        
+    for dsm, dtm in zip(dsm_list_this10km, dtm_list_this10km):
+
+        sobel_path = vtemp + os.path.basename(dtm).replace('DTM', 'SOBEL')
+
+        hat_path = vtemp + os.path.basename(dtm).replace('DTM', 'HAT')
+        print(sobel_path)
+        print(hat_path)
+        dsm_raster = gdal.Open(dsm)
+        dsm_bandarr = dsm_raster.GetRasterBand(1).ReadAsArray()
+        dsm_npy = np.array(dsm_bandarr)
+
+        dtm_raster = gdal.Open(dtm)
+        dtm_bandarr = dtm_raster.GetRasterBand(1).ReadAsArray()
+        dtm_npy = np.array(dtm_bandarr)
+
+        if not os.path.isfile(hat_path):
+            hat_npy = dsm_npy - dtm_npy
+            array_to_raster(hat_npy, reference=dtm, out_path=hat_path, creation_options=["COMPRESS=LZW"])
+
+        if not os.path.isfile(sobel_path):
+            sobel_npy = zobel_filter(
+                    dtm_npy, size=[5, 5], normalised_sobel=False, gaussian_preprocess=False
+                )
+            array_to_raster(sobel_npy, reference=dtm, out_path=sobel_path, creation_options=["COMPRESS=LZW"])
+
+
+        vrt = vtemp + os.path.basename(dtm).replace('DTM_', '').replace('.tif', '.vrt')
+        gdal.BuildVRT(vrt, [dtm, hat_path, sobel_path], options=gdal.BuildVRTOptions(separate=True))
+    print('HAT, SOBEL and VRT files created!')
+
+    
+    vrt_list = [vtemp + x + '.vrt' for x in km1_namelist]
+    this_10km_geometry = km10_df[km10_df['tilename'] == tile10km]['geometry'].iloc[0]
+    print('creating 10km vrt...')
+
+    vrt_10km = gdal.BuildVRT(vtemp + tile10km + '.vrt', vrt_list, options=gdal.BuildVRTOptions(outputBounds=getExtent(this_10km_geometry), separate=True))
+    print('10km vrt created!')
+    
+
+
+    break
+#glob DSM
+#%%
+#make HAT and SOBEL
+
+#stack them and make vrt
+
+#output all 100 vrts, and all 100 vrts with 10km tiles
+
+# make 10km vrt
+
+# predict that one tile
+
 # %%
-
-
