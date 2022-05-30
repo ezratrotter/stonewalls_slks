@@ -87,12 +87,6 @@
 
 # #%%
 
-<<<<<<< HEAD
-# for dtm, sobel, hat in zip(dtm_vrt_list, sobel_vrt_list, hat_vrt_list,):
-#     if not (os.path.basename(dtm) == os.path.basename(hat).replace('HAT', 'DTM') == os.path.basename(sobel).replace('SOBEL', 'DTM')):
-#         ### this exception means that the contents of the folders do not match
-#         raise Exception("catastrphic error")
-=======
 #################################
 ##### MAKE STACKED 1KM VRTS #####
 #################################
@@ -101,7 +95,6 @@ for dtm, sobel, hat in zip(dtm_vrt_list, sobel_vrt_list, hat_vrt_list,):
     if not (os.path.basename(dtm) == os.path.basename(hat).replace('HAT', 'DTM') == os.path.basename(sobel).replace('SOBEL', 'DTM')):
         ### this exception means that the contents of the folders do not match
         raise Exception("catastrphic error")
->>>>>>> 067f782612c8ce2aa33fe6f6ee3360e56f66347a
 
 #     t = os.path.basename(dtm).replace('DTM_', '').replace('.tif', '.vrt')
 #     vrt = '//pc116900/S Drone div/STENDIGER/vrts/' + t
@@ -109,25 +102,16 @@ for dtm, sobel, hat in zip(dtm_vrt_list, sobel_vrt_list, hat_vrt_list,):
 
 #     gdal.BuildVRT(vrt, [dtm, hat, sobel], options=gdal.BuildVRTOptions(separate=True))
 
-<<<<<<< HEAD
-# #%%
-# vrt_dir = '//pc116900/S Drone div/STENDIGER/vrts/'
-=======
 #%%
 #################################
 ######## MAKE BIG VRT ###########
 #################################
 vrt_dir = '//pc116900/S Drone div/STENDIGER/vrts/'
->>>>>>> 067f782612c8ce2aa33fe6f6ee3360e56f66347a
 
 # vrts = glob.glob(vrt_dir + '*.vrt')
 
-<<<<<<< HEAD
-# gdal.BuildVRT('//pc116900/S Drone div/STENDIGER/vrts/merged.vrt', vrts)
-=======
 ## extent of whole Danmark 10km tiles (land)
 [xmax, xmin, ymax, ymin] = [900000, 440000, 6410000, 6040000]
->>>>>>> 067f782612c8ce2aa33fe6f6ee3360e56f66347a
 
 ds = gdal.BuildVRT('//pc116900/S Drone div/STENDIGER/vrts/merged.vrt', vrts, options=gdal.BuildVRTOptions(outputBounds=(xmin, ymin, xmax, ymax)))
 ds.FlushCache()

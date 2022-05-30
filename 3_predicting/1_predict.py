@@ -38,6 +38,8 @@ def read_raster(model_raster_fname):
     model_dataset = gdal.Open(model_raster_fname)
     return model_dataset.ReadAsArray()
 
+# %%
+
 
 def write_raster(image, fn_raster, fn_output):
 
@@ -56,7 +58,7 @@ def write_raster(image, fn_raster, fn_output):
 
     srs = dataset.GetProjection()
 
-    target_ds = gdal.GetDriverByName('GTiff').Create(fn_output, x_res, y_res, N, gdal.GDT_Float32, options=[
+    target_ds = gdal.GetDriverByName('GTiff').Create(fn_output, x_res, y_res, N, gdal.GDT_Int32, options=[
         'COMPRESS=LZW', 'TILED=YES', 'BLOCKXSIZE=256', 'BLOCKYSIZE=256'])
     target_ds.SetGeoTransform((x_min, pixel_width, 0, y_min, 0, -pixel_width))
     target_ds.SetProjection(srs)
@@ -78,6 +80,8 @@ def write_raster(image, fn_raster, fn_output):
 
     #target_ds.BuildOverviews("NEAREST", [2,4,8,16,32,64,128])
     target_ds = None
+
+# %%
 
 
 def read_from_vrt(ds, x, y, patch_size):
@@ -460,7 +464,6 @@ def smooth_vrt_predictions(model, vrt_filename, output_filename, options):
         n_patches//(steps_per_predict*batch_size))]
     all_steps.append(
         int(np.ceil((n_patches-sum(all_steps*batch_size))/batch_size)))
-
     # print(all_steps)
     for idx, steps in enumerate(all_steps):
         tmp = model.predict(train_ds, steps=steps, verbose=1)
@@ -494,74 +497,11 @@ def smooth_vrt_predictions(model, vrt_filename, output_filename, options):
             idx += 1
 
     full_weighted = np.divide(sum_aw, sum_w)
-    bin_full_weighted = np.where(full_weighted > 0.1, 1, full_weighted)
+    bin_full_weighted = np.where(
+        full_weighted > 0.1, 1, full_weighted)
 
     write_raster(bin_full_weighted, vrt_filename, output_filename)
 
-
-# km10_path = "R:/PROJ/10/415/217/20_Aflevering/raekkefoelge.gpkg"
-# driver = ogr.GetDriverByName('gpkg')
-# km10 = driver.Open(km10_path)
-
-# if km10 is None:
-#     print('Could not open %s' % (km10_path))
-# else:
-#     layer = km10.GetLayer()
-#     featureCount = layer.GetFeatureCount()
-#     extent = layer.GetExtent()
-#     print("Number of features in %s: %d;" %
-#           (os.path.basename(km10_path), featureCount))
-
-# #%%
-
-# for feature in layer:
-
-#     if feature.GetField('lev_blok') != 1:
-#         continue
-
-#     tiles = feature.GetField('tilename')
-#     tile_geometry = feature.GetGeometryRef()
-#     tile_extent = tile_geometry.GetEnvelope()
-#     print(f"Tile: {tiles}, extent: {tile_extent}, geometry: {tile_geometry}")
-
-#     [xmin, xmax, ymin, ymax] = tile_extent
-#     [bfxmin, bfxmax, bfymin, bfymax] = [xmin - (250*0.4), xmax + (250*0.4), ymin - (250*0.4), ymax + (250*0.4)] #250 (tiles) * tile size (0.4)
-
-#     vrt = '//pc116900/S Drone div/STENDIGER/vrts/merged.vrt'
-
-#     ds = gdal.Open(vrt)
-
-#     band = ds.GetRasterBand(1)
-
-#     geotransform = ds.GetGeoTransform()
-
-#     xinit = geotransform[0]
-#     yinit = geotransform[3]
-
-#     xsize = geotransform[1]
-#     ysize = geotransform[5]
-
-#     p1 = (bfxmin, bfymax)
-#     p2 = (bfxmax, bfymin)
-#     row1 = int((p1[1] - yinit)/ysize)
-#     col1 = int((p1[0] - xinit)/xsize)
-
-#     row2 = int((p2[1] - yinit)/ysize)
-#     col2 = int((p2[0] - xinit)/xsize)
-
-#     data = band.ReadAsArray(col1, row1, col2 - col1, row2 - row1)
-
-#     break
-
-
-# #%%
-
-
-# # p1 = (440000.0, 6410000.0)
-# # p2 = (900000.0, 6040000.0)
-
-# p1 = (440000.0, 6410000.0)
-# p2 = (900000.0, 6040000.0)
 
 # upload model
 model_path = "V:/2022-03-31_Stendiger_EZRA/code/logs/"
@@ -574,12 +514,16 @@ custom_objects = {
 model = load_model(model_path + 'model.25-0.832-0.190-0.984.h5',
                    custom_objects=custom_objects)
 
+# vrt = '//pc116900/S Drone div/STENDIGER/vrts/10kmv2/10km_621_71.vrt'
 vrt_filename = glob(
-    '//pc116900/S Drone div/STENDIGER/vrts/10km/*.vrt')
+    '//pc116900/S Drone div/STENDIGER/vrts/10kmv2/*.vrt')
 
 for idx, vrt in enumerate(vrt_filename, start=1):
     output_name = os.path.basename(vrt).replace('vrt', 'tif')
-    output_filename = f'R:/PROJ/10/415/217/20_Aflevering/leverance_1/{output_name}'
+    output_filename = f'R:/PROJ/10/415/217/20_Aflevering/leverance_1/test/{output_name}'
+    if os.path.exists(output_filename):
+        print(f"{output_name} was already predicted, skipping...")
+        continue
 
     options = {
         'n_bands_x': 3,
@@ -591,89 +535,7 @@ for idx, vrt in enumerate(vrt_filename, start=1):
         'sigmoid_width': 3,
         'sigmoid_steepness': 7
     }
-    print(f"predicting {output_name}... --> ({idx})")
+    print(f"predicting {output_name}... ({idx})")
     smooth_vrt_predictions(model, vrt, output_filename, options)
 
 print("Done, all vrts predicted.")
-
-# %%
-# ###generate tiles from 10km and patches for prediction
-# tiles_path = glob('V:/2022-03-31_Stendiger_EZRA/training_data/initial_area/dem/vrt10km_pilotarea/*.vrt')
-# # tile = tiles_path + '/stack_10km_614_67.vrt'
-# out_dir = "R:/PROJ/10/415/217/20_Aflevering/pilot_area/"
-
-# import gc
-# import keras
-# import keras.backend as K
-
-
-# for tile in tiles_path:
-#     if not os.path.exists(tile):
-#         print(f"{tile} does not exist!!")
-#         break
-
-#     if os.path.exists(out_dir + tile.split('\\')[1].split('.')[0] + ".tif"):
-#         print(f"skipping {tile}, already exists")
-#         continue
-
-#     ds = gdal.Open(tile)
-#     print(f"generating tiles and patches for {tile}...")
-#     vrt_gen = vrt_tile_generator(tile, 5000, 64)
-#     patch_gen = patch_generator(vrt_gen, 64)
-
-#     ##for each tile generated, predict for all patches
-#     print(f"predicting {tile}...")
-#     all_y = []
-#     for idx, (patches, rng_x, rng_y, im_sz) in enumerate(patch_gen):
-#         y = model.predict(patches, batch_size=512, verbose=1)
-#         K.clear_session()
-
-#         all_y.append( (y,rng_x, rng_y, im_sz))
-
-#         print(idx)
-
-#     all_y2 = [ ((v>0.1).astype(np.int32), rng_x, rng_y, im_sz) for (v, rng_x, rng_y, im_sz) in all_y]
-
-#     ###restore image tiles from patches
-#     y_tile = [restore_image_from_tiles(y2, rng_x, rng_y, im_sz, 2) for (y2, rng_x, rng_y, im_sz) in all_y2]
-
-#     ##check ranges (buffers), correct tiles size to original tiles (5000x5000), without the buffer
-#     ##result is array of arrays
-
-#     ranges = vrt_tile_ranges(tile, 5000, 64)
-
-#     result = []
-#     full = np.zeros((25000,25000))
-
-#     result = []
-#     for idx, _ in enumerate(y_tile):
-#         # print(idx)
-#         res = clip_tile(y_tile[idx], ranges[idx])
-#         result.append(res)
-
-#     print(f'done clipping for {tile}')
-#     # print([v.shape for v in result])
-
-#     ##write raster 10km tile from array
-
-
-#     #ref raster - vrt
-#     # tile = r'V:\2022-03-31_Stendiger_EZRA\training_data\initial_area\dem\vrt\km10\dtm_10km_614_67.vrt'
-
-#     out_tif = tile.split('\\')[1].split('.')[0] + ".tif"
-#     print(f"writing raster {out_tif}...")
-#     write_data_as_raster_list([full], tile, out_dir + out_tif)
-
-#     ds = None
-#     del full, y_tile, all_y, all_y2
-
-#     gc.collect()
-#     if not os.path.exists(out_dir + out_tif):
-#         print("no output created!")
-#         break
-
-
-# print("all tiles predicted and saved!")
-
-
-# # %%
