@@ -38,7 +38,7 @@ def read_raster(model_raster_fname):
     model_dataset = gdal.Open(model_raster_fname)
     return model_dataset.ReadAsArray()
 
-# %%
+
 
 
 def write_raster(image, fn_raster, fn_output):
@@ -81,7 +81,7 @@ def write_raster(image, fn_raster, fn_output):
     #target_ds.BuildOverviews("NEAREST", [2,4,8,16,32,64,128])
     target_ds = None
 
-# %%
+
 
 
 def read_from_vrt(ds, x, y, patch_size):
@@ -425,7 +425,6 @@ def createBuffer(inputfn, outputBufferfn, bufferDist):
         bufferlyr.CreateFeature(outFeature)
         outFeature = None
 
-# %%
 
 
 def smooth_vrt_predictions(model, vrt_filename, output_filename, options):
@@ -507,94 +506,8 @@ def smooth_vrt_predictions(model, vrt_filename, output_filename, options):
         full_weighted > 0.1, 1, full_weighted)
 
     write_raster(bin_full_weighted, vrt_filename, output_filename)
-# %%
 
 
-# upload model
-model_path = "V:/2022-03-31_Stendiger_EZRA/code/logs/"
-
-custom_objects = {
-    'binary_focal_loss_plus_jaccard_loss': sm.losses.binary_focal_jaccard_loss,
-    'iou_score': sm.metrics.iou_score
-}
-
-model = load_model(model_path + 'model.25-0.832-0.190-0.984.h5',
-                   custom_objects=custom_objects)
-
-# vrt = '//pc116900/S Drone div/STENDIGER/vrts/10kmv2/10km_621_71.vrt'
-vrt_filename = glob(
-    '//pc116900/S Drone div/STENDIGER/vrts/10kmv2/*.vrt')
-
-for idx, vrt in enumerate(vrt_filename, start=1):
-
-    # if os.path.basename(vrt) != '10km_608_47.vrt':
-    #     print(vrt, 'skipped')
-    #     continue
-    if not os.path.exists(vrt):
-        raise Exception(f"{vrt} does not exist")
-    output_name = os.path.basename(vrt).replace('vrt', 'tif')
-    output_filename = f'R:/PROJ/10/415/217/20_Aflevering/leverance_1/test/{output_name}'
-    if os.path.exists(output_filename):
-        print(f"{output_name} was already predicted, skipping...")
-        continue
-
-    options = {
-        'n_bands_x': 3,
-        'n_classes': 2,
-        'patch_size': 64,
-        'overlap': 2,
-        'batch_size': 128,
-        'steps_per_predict': 128,
-        'sigmoid_width': 3,
-        'sigmoid_steepness': 7
-    }
-    print(f"predicting {output_name}... ({idx})")
-    smooth_vrt_predictions(model, vrt, output_filename, options)
-
-    ###restore image tiles from patches
-    y_tile = [restore_image_from_tiles(y2, rng_x, rng_y, im_sz, 2) for (y2, rng_x, rng_y, im_sz) in all_y2]
-
-    ##check ranges (buffers), correct tiles size to original tiles (5000x5000), without the buffer
-    ##result is array of arrays
-
-    ranges = vrt_tile_ranges(tile, 5000, 64)
-
-    result = []
-    full = np.zeros((25000,25000))
-
-    result = []
-    for idx, _ in enumerate(y_tile):
-        # print(idx)
-        res = clip_tile(y_tile[idx], ranges[idx])
-        result.append(res)
-
-    print(f'done clipping for {tile}')
-    # print([v.shape for v in result])
-
-    ##write raster 10km tile from array
-
-
-    #ref raster - vrt
-    # tile = r'V:\2022-03-31_Stendiger_EZRA\training_data\initial_area\dem\vrt\km10\dtm_10km_614_67.vrt'
-
-    out_tif = tile.split('\\')[1].split('.')[0] + ".tif"
-    print(f"writing raster {out_tif}...")
-    write_data_as_raster_list([full], tile, out_dir + out_tif)
-
-    ds = None
-    del full, y_tile, all_y, all_y2
-
-    gc.collect()
-    if not os.path.exists(out_dir + out_tif):
-        print("no output created!")
-        break
-
-
-print("all tiles predicted and saved!")
-
-
-# %%
-# %%
 
 import gc
 import keras
@@ -654,15 +567,15 @@ km10_list = km10_df[km10_df['lev_blok'] == leverance_nr]['tilename'].tolist()
 km1_df = gpd.read_file("../data/grids/dki_1km.gpkg")
 
 print('assembling list of dtm files...')
-dtm_list = [x for x in Path('//pc116900/S Drone div/STENDIGER/DTM').rglob('*.tif')]
+try: dtm_list
+except:
+    dtm_list = [x for x in Path('//pc116900/S Drone div/STENDIGER/DTM').rglob('*.tif')]
 print('list of dtm files assembled!')
 
 for tile in km10_list:
     vrt10kmtile = cyclone_temp + tile + '.vrt'
     prediction10kmtif = rleverance + tile + '.tif'
-    if os.path.exists(vrt10kmtile):
-        print(f"skipping {tile}, already exists")
-    else:
+    if not os.path.exists(vrt10kmtile):
 
         print('starting proceduce for {}...'.format(tile))
         km1_namelist = km1_df[km1_df['dki_10km'] == tile]['dki_1km'].tolist()
@@ -708,85 +621,150 @@ for tile in km10_list:
         print('HAT, SOBEL and VRT files created!')
 
         
-        vrt_list = [cyclone_temp + x + '.vrt' for x in km1_namelist]
 
         #check that these files all exist
 
         this_10km_geometry = km10_df[km10_df['tilename'] == tile]['geometry'].iloc[0]
+
+        vrt_list = [cyclone_temp + x + '.vrt' for x in km1_namelist]
+        for vrt in vrt_list:
+            if not os.path.isfile(vrt):
+                raise Exception('catastrophic error', vrt)
+
+
+
         print('creating 10km vrt...')
-        gdal.BuildVRT(vrt10kmtile, vrt_list, options=gdal.BuildVRTOptions(outputBounds=getExtent(this_10km_geometry), separate=True, outputSRS='EPSG:25832'))
+        gdal.BuildVRT(vrt10kmtile, vrt_list, options=gdal.BuildVRTOptions(outputBounds=getExtent(this_10km_geometry), outputSRS='EPSG:25832'))
         print('10km vrt created!')
         
         finish = time.perf_counter()
         print('procedure for {} finished in {} seconds'.format(tile, finish - start))
 
         out_dir = rleverance
-
+    else:
+        print(f"{vrt10kmtile} already exists, skipping...")
+        
 
     if os.path.exists(prediction10kmtif):
-        print(f"skipping {tile}, already exists")
+        print(f"skipping {tile}, prediction already exists")
         continue
-    print(prediction10kmtif)
 
-    ds = gdal.Open(vrt10kmtile)
     
-    print(f"generating tiles and patches for {tile}...")
-    vrt_gen = vrt_tile_generator(vrt10kmtile, 5000, 64)
-    patch_gen = patch_generator(vrt_gen, 64)
+    model_path = "V:/2022-03-31_Stendiger_EZRA/code/logs/"
 
-    ##for each tile generated, predict for all patches
-    print(f"predicting {tile}...")
-    all_y = []
-    for idx, (patches, rng_x, rng_y, im_sz) in enumerate(patch_gen):
-        y = model.predict(patches, batch_size=512, verbose=1)
-        K.clear_session()
-
-        all_y.append( (y,rng_x, rng_y, im_sz))
-
-        print(idx)
-
-    all_y2 = [ ((v>0.1).astype(np.int32), rng_x, rng_y, im_sz) for (v, rng_x, rng_y, im_sz) in all_y]
-
-    ###restore image tiles from patches
-    y_tile = [restore_image_from_tiles(y2, rng_x, rng_y, im_sz, 2) for (y2, rng_x, rng_y, im_sz) in all_y2]
-
-    ##check ranges (buffers), correct tiles size to original tiles (5000x5000), without the buffer
-    ##result is array of arrays
-
-    ranges = vrt_tile_ranges(tile, 5000, 64)
-
-    result = []
-    full = np.zeros((25000,25000))
-
-    result = []
-    for idx, _ in enumerate(y_tile):
-        # print(idx)
-        res = clip_tile(y_tile[idx], ranges[idx])
-        result.append(res)
-
-    print(f'done clipping for {tile}')
-    # print([v.shape for v in result])
-
-    ##write raster 10km tile from array
+    custom_objects = {
+        'binary_focal_loss_plus_jaccard_loss': sm.losses.binary_focal_jaccard_loss,
+        'iou_score': sm.metrics.iou_score
+    }
+    print('loading model...')
+    model = load_model(model_path + 'model.25-0.832-0.190-0.984.h5',
+                    custom_objects=custom_objects)
+    print('model loaded!')
+    # vrt = '//pc116900/S Drone div/STENDIGER/vrts/10kmv2/10km_621_71.vrt'
 
 
-    #ref raster - vrt
-    # tile = r'V:\2022-03-31_Stendiger_EZRA\training_data\initial_area\dem\vrt\km10\dtm_10km_614_67.vrt'
+    # if os.path.basename(vrt) != '10km_608_47.vrt':
+    #     print(vrt, 'skipped')
+    #     continue
+    if os.path.exists(prediction10kmtif):
+        print(f"{prediction10kmtif} was already predicted, skipping...")
+        continue
 
-    # out_tif = tile.split('\\')[1].split('.')[0] + ".tif"
-    print(f"writing raster {out_tif}...")
-    write_data_as_raster_list([full], vrt10kmtile, prediction10kmtile)
-
-    ds = None
-    del full, y_tile, all_y, all_y2
-
-    gc.collect()
-    if not os.path.exists(out_dir + out_tif):
-        print("no output created!")
-        break
-
-
-print("all tiles predicted and saved!")
-
-
+    options = {
+        'n_bands_x': 3,
+        'n_classes': 2,
+        'patch_size': 64,
+        'overlap': 2,
+        'batch_size': 128,
+        'steps_per_predict': 128,
+        'sigmoid_width': 3,
+        'sigmoid_steepness': 7
+    }
+    print(f"predicting {prediction10kmtif}... ")
+    smooth_vrt_predictions(model, vrt10kmtile, prediction10kmtif, options)
+    print(f"{prediction10kmtif} predicted!")
 # %%
+#%%
+
+
+# upload model
+# model_path = "V:/2022-03-31_Stendiger_EZRA/code/logs/"
+
+# custom_objects = {
+#     'binary_focal_loss_plus_jaccard_loss': sm.losses.binary_focal_jaccard_loss,
+#     'iou_score': sm.metrics.iou_score
+# }
+
+# model = load_model(model_path + 'model.25-0.832-0.190-0.984.h5',
+#                    custom_objects=custom_objects)
+
+# # vrt = '//pc116900/S Drone div/STENDIGER/vrts/10kmv2/10km_621_71.vrt'
+# vrt_filename = glob(
+#     '//pc116900/S Drone div/STENDIGER/vrts/10kmv2/*.vrt')
+
+# for idx, vrt in enumerate(vrt_filename, start=1):
+
+#     # if os.path.basename(vrt) != '10km_608_47.vrt':
+#     #     print(vrt, 'skipped')
+#     #     continue
+#     if not os.path.exists(vrt):
+#         raise Exception(f"{vrt} does not exist")
+#     output_name = os.path.basename(vrt).replace('vrt', 'tif')
+#     output_filename = f'R:/PROJ/10/415/217/20_Aflevering/leverance_1/test/{output_name}'
+#     if os.path.exists(output_filename):
+#         print(f"{output_name} was already predicted, skipping...")
+#         continue
+
+#     options = {
+#         'n_bands_x': 3,
+#         'n_classes': 2,
+#         'patch_size': 64,
+#         'overlap': 2,
+#         'batch_size': 128,
+#         'steps_per_predict': 128,
+#         'sigmoid_width': 3,
+#         'sigmoid_steepness': 7
+#     }
+#     print(f"predicting {output_name}... ({idx})")
+#     smooth_vrt_predictions(model, vrt, output_filename, options)
+
+#     ###restore image tiles from patches
+#     y_tile = [restore_image_from_tiles(y2, rng_x, rng_y, im_sz, 2) for (y2, rng_x, rng_y, im_sz) in all_y2]
+
+#     ##check ranges (buffers), correct tiles size to original tiles (5000x5000), without the buffer
+#     ##result is array of arrays
+
+#     ranges = vrt_tile_ranges(tile, 5000, 64)
+
+#     result = []
+#     full = np.zeros((25000,25000))
+
+#     result = []
+#     for idx, _ in enumerate(y_tile):
+#         # print(idx)
+#         res = clip_tile(y_tile[idx], ranges[idx])
+#         result.append(res)
+
+#     print(f'done clipping for {tile}')
+#     # print([v.shape for v in result])
+
+#     ##write raster 10km tile from array
+
+
+#     #ref raster - vrt
+#     # tile = r'V:\2022-03-31_Stendiger_EZRA\training_data\initial_area\dem\vrt\km10\dtm_10km_614_67.vrt'
+
+#     out_tif = tile.split('\\')[1].split('.')[0] + ".tif"
+#     print(f"writing raster {out_tif}...")
+#     write_data_as_raster_list([full], tile, out_dir + out_tif)
+
+#     ds = None
+#     del full, y_tile, all_y, all_y2
+
+#     gc.collect()
+#     if not os.path.exists(out_dir + out_tif):
+#         print("no output created!")
+#         break
+
+
+# print("all tiles predicted and saved!")
