@@ -692,3 +692,199 @@ print("all tiles predicted and saved!")
 
 
 # %%
+# %%
+
+import gc
+import keras
+import keras.backend as K
+
+import glob
+import geopandas as gpd
+import shutil
+import time
+from osgeo import ogr, gdal
+import numpy as np
+from zobel_filter import zobel_filter
+from pathlib import Path
+
+yellow_path = "V:/2022-03-31_Stendiger_EZRA/buteo"
+import sys; sys.path.append(yellow_path); sys.path.append(yellow_path + 'buteo/'); sys.path.append(yellow_path + 'buteo/machine_learning/'); sys.path.append(yellow_path + 'buteo/filters/'); sys.path.append(yellow_path + 'buteo/raster/'); sys.path.append(yellow_path + 'buteo/convolutions/')
+from buteo.raster.io import *
+from scipy import ndimage
+
+start = time.perf_counter()
+
+def getExtent(geometry):
+    coords = geometry.exterior.coords
+    xmin = float('inf')
+    ymin = float('inf')
+    xmax = 0
+    ymax = 0
+    for (x, y) in coords:
+        if x < xmin:
+            xmin = x
+        if y < ymin:
+            ymin = y
+        if x > xmax:
+            xmax = x
+        if y > ymax:
+            ymax = y
+    return (xmin, ymin, xmax, ymax)
+
+#read in 10km tiles
+#get list of tiles I want
+leverance_nr = 2
+rdrive_base = '//Niras.int/root\PROJ/10/415/217/20_Aflevering/'
+rleverance = rdrive_base + 'leverance_{}/'.format(leverance_nr)
+cyclone_base = '//pc116900/S Drone div/STENDIGER/'
+cyclone_temp = cyclone_base + 'temp_{}/'.format(leverance_nr)
+
+if not os.path.isdir(rleverance):
+    print('creating leverance dir...')
+    os.mkdir(rleverance)
+if not os.path.isdir(cyclone_temp):
+    print('creating cyclone_temp dir...')
+    os.mkdir(cyclone_temp)
+
+
+km10_df = gpd.read_file(r"\\niras.int\root\PROJ\10\415\217\20_Aflevering/raekkefoelge.gpkg")
+km10_list = km10_df[km10_df['lev_blok'] == leverance_nr]['tilename'].tolist()
+km1_df = gpd.read_file("../data/grids/dki_1km.gpkg")
+
+print('assembling list of dtm files...')
+dtm_list = [x for x in Path('//pc116900/S Drone div/STENDIGER/DTM').rglob('*.tif')]
+print('list of dtm files assembled!')
+
+for tile in km10_list:
+    vrt10kmtile = cyclone_temp + tile + '.vrt'
+    prediction10kmtif = rleverance + tile + '.tif'
+    if os.path.exists(vrt10kmtile):
+        print(f"skipping {tile}, already exists")
+    else:
+
+        print('starting proceduce for {}...'.format(tile))
+        km1_namelist = km1_df[km1_df['dki_10km'] == tile]['dki_1km'].tolist()
+        
+        dtm_list_this10km = [str(x) for x in dtm_list if x.name.replace('DTM_', '').replace('.tif', '') in km1_namelist]
+        dsm_list_this10km = [x.replace('DTM', 'DSM').replace('dtm', 'dsm') for x in dtm_list_this10km]
+        print('number of 1km tiles: ', len(dtm_list_this10km))
+        for dtm, dsm in zip(dtm_list_this10km, dsm_list_this10km):
+            if not os.path.isfile(dtm) or not os.path.isfile(dsm):
+                raise Exception("catastrphic error", dtm, dsm)
+        print('dtm and dsm files confirmed!')
+            
+        print('creating HAT, SOBEL and VRT files...')
+            
+        for dsm, dtm in zip(dsm_list_this10km, dtm_list_this10km):
+
+            sobel_path = cyclone_temp + os.path.basename(dtm).replace('DTM', 'SOBEL')
+
+            hat_path = cyclone_temp + os.path.basename(dtm).replace('DTM', 'HAT')
+            
+            dsm_raster = gdal.Open(dsm)
+            dsm_bandarr = dsm_raster.GetRasterBand(1).ReadAsArray()
+            dsm_npy = np.array(dsm_bandarr)
+
+            dtm_raster = gdal.Open(dtm)
+            dtm_bandarr = dtm_raster.GetRasterBand(1).ReadAsArray()
+            dtm_npy = np.array(dtm_bandarr)
+
+            if not os.path.isfile(hat_path):
+                hat_npy = dsm_npy - dtm_npy
+                array_to_raster(hat_npy, reference=dtm, out_path=hat_path, creation_options=["COMPRESS=LZW"])
+
+            if not os.path.isfile(sobel_path):
+                sobel_npy = zobel_filter(
+                        dtm_npy, size=[5, 5], normalised_sobel=False, gaussian_preprocess=False
+                    )
+                array_to_raster(sobel_npy, reference=dtm, out_path=sobel_path, creation_options=["COMPRESS=LZW"])
+
+            vrt = cyclone_temp + os.path.basename(dtm).replace('DTM_', '').replace('.tif', '.vrt')
+            if not os.path.isfile(vrt):
+                gdal.BuildVRT(vrt, [dtm, hat_path, sobel_path], options=gdal.BuildVRTOptions(separate=True, outputSRS='EPSG:25832'))
+            print(dtm, 'done!')
+        print('HAT, SOBEL and VRT files created!')
+
+        
+        vrt_list = [cyclone_temp + x + '.vrt' for x in km1_namelist]
+
+        #check that these files all exist
+
+        this_10km_geometry = km10_df[km10_df['tilename'] == tile]['geometry'].iloc[0]
+        print('creating 10km vrt...')
+        gdal.BuildVRT(vrt10kmtile, vrt_list, options=gdal.BuildVRTOptions(outputBounds=getExtent(this_10km_geometry), separate=True, outputSRS='EPSG:25832'))
+        print('10km vrt created!')
+        
+        finish = time.perf_counter()
+        print('procedure for {} finished in {} seconds'.format(tile, finish - start))
+
+        out_dir = rleverance
+
+
+    if os.path.exists(prediction10kmtif):
+        print(f"skipping {tile}, already exists")
+        continue
+    print(prediction10kmtif)
+
+    ds = gdal.Open(vrt10kmtile)
+    
+    print(f"generating tiles and patches for {tile}...")
+    vrt_gen = vrt_tile_generator(vrt10kmtile, 5000, 64)
+    patch_gen = patch_generator(vrt_gen, 64)
+
+    ##for each tile generated, predict for all patches
+    print(f"predicting {tile}...")
+    all_y = []
+    for idx, (patches, rng_x, rng_y, im_sz) in enumerate(patch_gen):
+        y = model.predict(patches, batch_size=512, verbose=1)
+        K.clear_session()
+
+        all_y.append( (y,rng_x, rng_y, im_sz))
+
+        print(idx)
+
+    all_y2 = [ ((v>0.1).astype(np.int32), rng_x, rng_y, im_sz) for (v, rng_x, rng_y, im_sz) in all_y]
+
+    ###restore image tiles from patches
+    y_tile = [restore_image_from_tiles(y2, rng_x, rng_y, im_sz, 2) for (y2, rng_x, rng_y, im_sz) in all_y2]
+
+    ##check ranges (buffers), correct tiles size to original tiles (5000x5000), without the buffer
+    ##result is array of arrays
+
+    ranges = vrt_tile_ranges(tile, 5000, 64)
+
+    result = []
+    full = np.zeros((25000,25000))
+
+    result = []
+    for idx, _ in enumerate(y_tile):
+        # print(idx)
+        res = clip_tile(y_tile[idx], ranges[idx])
+        result.append(res)
+
+    print(f'done clipping for {tile}')
+    # print([v.shape for v in result])
+
+    ##write raster 10km tile from array
+
+
+    #ref raster - vrt
+    # tile = r'V:\2022-03-31_Stendiger_EZRA\training_data\initial_area\dem\vrt\km10\dtm_10km_614_67.vrt'
+
+    # out_tif = tile.split('\\')[1].split('.')[0] + ".tif"
+    print(f"writing raster {out_tif}...")
+    write_data_as_raster_list([full], vrt10kmtile, prediction10kmtile)
+
+    ds = None
+    del full, y_tile, all_y, all_y2
+
+    gc.collect()
+    if not os.path.exists(out_dir + out_tif):
+        print("no output created!")
+        break
+
+
+print("all tiles predicted and saved!")
+
+
+# %%

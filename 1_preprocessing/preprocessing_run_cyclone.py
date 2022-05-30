@@ -479,11 +479,12 @@ import numpy as np
 from zobel_filter import zobel_filter
 from pathlib import Path
 
-
 yellow_path = "V:/2022-03-31_Stendiger_EZRA/buteo"
 import sys; sys.path.append(yellow_path); sys.path.append(yellow_path + 'buteo/'); sys.path.append(yellow_path + 'buteo/machine_learning/'); sys.path.append(yellow_path + 'buteo/filters/'); sys.path.append(yellow_path + 'buteo/raster/'); sys.path.append(yellow_path + 'buteo/convolutions/')
 from buteo.raster.io import *
 from scipy import ndimage
+
+start = time.perf_counter()
 
 def getExtent(geometry):
     coords = geometry.exterior.coords
@@ -505,17 +506,17 @@ def getExtent(geometry):
 #read in 10km tiles
 #get list of tiles I want
 leverance_nr = 2
-rdrive_base = '//Niras.int/root\PROJ/10/415/217/20_Aflevering'
+rdrive_base = '//Niras.int/root\PROJ/10/415/217/20_Aflevering/'
 rleverance = rdrive_base + 'leverance_{}/'.format(leverance_nr)
-vdrive_base = '//pc116900/S Drone div/STENDIGER/'
-vtemp = vdrive_base + 'temp_{}/'.format(leverance_nr)
+cyclone_base = '//pc116900/S Drone div/STENDIGER/'
+cyclone_temp = cyclone_base + 'temp_{}/'.format(leverance_nr)
 
 if not os.path.isdir(rleverance):
     print('creating leverance dir...')
     os.mkdir(rleverance)
-if not os.path.isdir(vtemp):
-    print('creating vtemp dir...')
-    os.mkdir(vtemp)
+if not os.path.isdir(cyclone_temp):
+    print('creating cyclone_temp dir...')
+    os.mkdir(cyclone_temp)
 
 
 km10_df = gpd.read_file(r"\\niras.int\root\PROJ\10\415\217\20_Aflevering/raekkefoelge.gpkg")
@@ -529,9 +530,10 @@ print('list of dtm files assembled!')
 for tile10km in km10_list:
     print('starting proceduce for {}...'.format(tile10km))
     km1_namelist = km1_df[km1_df['dki_10km'] == tile10km]['dki_1km'].tolist()
-    dtm_list_this10km = [str(x) for x in dtm_list if x.name == tile10km + '.tif']
-    dsm_list_this10km = [x.replace('DTM', 'DSM').replace('dtm', 'dsm') for x in dtm_list_this10km]
     
+    dtm_list_this10km = [str(x) for x in dtm_list if x.name.replace('DTM_', '').replace('.tif', '') in km1_namelist]
+    dsm_list_this10km = [x.replace('DTM', 'DSM').replace('dtm', 'dsm') for x in dtm_list_this10km]
+    print('number of 1km tiles: ', len(dtm_list_this10km))
     for dtm, dsm in zip(dtm_list_this10km, dsm_list_this10km):
         if not os.path.isfile(dtm) or not os.path.isfile(dsm):
             raise Exception("catastrphic error", dtm, dsm)
@@ -541,11 +543,10 @@ for tile10km in km10_list:
         
     for dsm, dtm in zip(dsm_list_this10km, dtm_list_this10km):
 
-        sobel_path = vtemp + os.path.basename(dtm).replace('DTM', 'SOBEL')
+        sobel_path = cyclone_temp + os.path.basename(dtm).replace('DTM', 'SOBEL')
 
-        hat_path = vtemp + os.path.basename(dtm).replace('DTM', 'HAT')
-        print(sobel_path)
-        print(hat_path)
+        hat_path = cyclone_temp + os.path.basename(dtm).replace('DTM', 'HAT')
+        
         dsm_raster = gdal.Open(dsm)
         dsm_bandarr = dsm_raster.GetRasterBand(1).ReadAsArray()
         dsm_npy = np.array(dsm_bandarr)
@@ -565,21 +566,26 @@ for tile10km in km10_list:
             array_to_raster(sobel_npy, reference=dtm, out_path=sobel_path, creation_options=["COMPRESS=LZW"])
 
 
-        vrt = vtemp + os.path.basename(dtm).replace('DTM_', '').replace('.tif', '.vrt')
+        vrt = cyclone_temp + os.path.basename(dtm).replace('DTM_', '').replace('.tif', '.vrt')
         gdal.BuildVRT(vrt, [dtm, hat_path, sobel_path], options=gdal.BuildVRTOptions(separate=True))
+        print(dtm, 'done!')
     print('HAT, SOBEL and VRT files created!')
 
     
-    vrt_list = [vtemp + x + '.vrt' for x in km1_namelist]
+    vrt_list = [cyclone_temp + x + '.vrt' for x in km1_namelist]
+
+    #check that these files all exist
+
     this_10km_geometry = km10_df[km10_df['tilename'] == tile10km]['geometry'].iloc[0]
     print('creating 10km vrt...')
 
-    vrt_10km = gdal.BuildVRT(vtemp + tile10km + '.vrt', vrt_list, options=gdal.BuildVRTOptions(outputBounds=getExtent(this_10km_geometry), separate=True))
+    vrt_10km = gdal.BuildVRT(cyclone_temp + tile10km + '.vrt', vrt_list, options=gdal.BuildVRTOptions(outputBounds=getExtent(this_10km_geometry), separate=True))
     print('10km vrt created!')
     
+    finish = time.perf_counter()
+    print('procedure for {} finished in {} seconds'.format(tile10km, finish - start))
 
-
-    break
+    
 #glob DSM
 #%%
 #make HAT and SOBEL
