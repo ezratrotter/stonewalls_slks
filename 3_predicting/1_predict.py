@@ -425,8 +425,14 @@ def createBuffer(inputfn, outputBufferfn, bufferDist):
         bufferlyr.CreateFeature(outFeature)
         outFeature = None
 
+# %%
+
 
 def smooth_vrt_predictions(model, vrt_filename, output_filename, options):
+    print('test')
+    if not os.path.isfile(vrt_filename):
+        print(vrt_filename)
+        raise Exception("VRT file does not exist")
     # Create tf.dataset from generator that iterates over vrt
     ds = gdal.Open(vrt_filename)
 
@@ -501,6 +507,7 @@ def smooth_vrt_predictions(model, vrt_filename, output_filename, options):
         full_weighted > 0.1, 1, full_weighted)
 
     write_raster(bin_full_weighted, vrt_filename, output_filename)
+# %%
 
 
 # upload model
@@ -519,6 +526,12 @@ vrt_filename = glob(
     '//pc116900/S Drone div/STENDIGER/vrts/10kmv2/*.vrt')
 
 for idx, vrt in enumerate(vrt_filename, start=1):
+
+    # if os.path.basename(vrt) != '10km_608_47.vrt':
+    #     print(vrt, 'skipped')
+    #     continue
+    if not os.path.exists(vrt):
+        raise Exception(f"{vrt} does not exist")
     output_name = os.path.basename(vrt).replace('vrt', 'tif')
     output_filename = f'R:/PROJ/10/415/217/20_Aflevering/leverance_1/test/{output_name}'
     if os.path.exists(output_filename):

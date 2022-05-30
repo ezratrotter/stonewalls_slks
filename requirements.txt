@@ -14,6 +14,9 @@ _whl\Rtree-0.9.4-cp38-cp38-win_amd64.whl
 _whl\Shapely-1.7.1-cp38-cp38-win_amd64.whl
 _whl\Fiona-1.8.17-cp38-cp38-win_amd64.whl
 
+_whl\tensorflow-2.6.0-cp38-cp38-win_amd64.whl
+
+
 SQLAlchemy
 GeoAlchemy2
 pymssql
@@ -23,8 +26,7 @@ xlsxwriter
 openpyxl
 pandas
 geopandas
-
-_whl\tensorflow-2.6.0-cp38-cp38-win_amd64.whl
+mypy_extensions
 tensorflow-estimator==2.6.0
 keras==2.6.0
 
