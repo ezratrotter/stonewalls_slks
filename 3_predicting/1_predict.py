@@ -15,6 +15,7 @@ import gc
 import keras.backend as K
 import keras
 
+gdal.UseExceptions()
 
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
@@ -548,7 +549,7 @@ def getExtent(geometry):
 
 #read in 10km tiles
 #get list of tiles I want
-leverance_nr = 2
+leverance_nr = 3
 rdrive_base = '//Niras.int/root\PROJ/10/415/217/20_Aflevering/'
 rleverance = rdrive_base + 'leverance_{}/'.format(leverance_nr)
 cyclone_base = '//pc116900/S Drone div/STENDIGER/'
@@ -575,74 +576,100 @@ print('list of dtm files assembled!')
 for tile in km10_list:
     vrt10kmtile = cyclone_temp + tile + '.vrt'
     prediction10kmtif = rleverance + tile + '.tif'
-    if not os.path.exists(vrt10kmtile):
+    if os.path.exists(prediction10kmtif):
+        continue
+   
 
-        print('starting proceduce for {}...'.format(tile))
-        km1_namelist = km1_df[km1_df['dki_10km'] == tile]['dki_1km'].tolist()
+    print('starting proceduce for {}...'.format(tile))
+
+    km1_namelist = km1_df[km1_df['dki_10km'] == tile]['dki_1km'].tolist()
+    dtm_list_this10km = [str(x) for x in dtm_list if x.name.replace('DTM_', '').replace('.tif', '') in km1_namelist]
+    dsm_list_this10km = [x.replace('DTM', 'DSM').replace('dtm', 'dsm') for x in dtm_list_this10km]
+    
+    if len(km1_namelist) == 0:
+        print('no 1km tiles found for {} - Skipping!'.format(tile))
+        continue
+    
+    for dtm, dsm in zip(dtm_list_this10km, dsm_list_this10km):
+        if not os.path.isfile(dtm) or not os.path.isfile(dsm):
+            raise Exception("catastrphic error", dtm, dsm)
+    print('dtm and dsm files confirmed!')
         
-        dtm_list_this10km = [str(x) for x in dtm_list if x.name.replace('DTM_', '').replace('.tif', '') in km1_namelist]
-        dsm_list_this10km = [x.replace('DTM', 'DSM').replace('dtm', 'dsm') for x in dtm_list_this10km]
-        print('number of 1km tiles: ', len(dtm_list_this10km))
-        for dtm, dsm in zip(dtm_list_this10km, dsm_list_this10km):
-            if not os.path.isfile(dtm) or not os.path.isfile(dsm):
-                raise Exception("catastrphic error", dtm, dsm)
-        print('dtm and dsm files confirmed!')
-            
-        print('creating HAT, SOBEL and VRT files...')
-            
-        for dsm, dtm in zip(dsm_list_this10km, dtm_list_this10km):
-
-            sobel_path = cyclone_temp + os.path.basename(dtm).replace('DTM', 'SOBEL')
-
-            hat_path = cyclone_temp + os.path.basename(dtm).replace('DTM', 'HAT')
-            
-            dsm_raster = gdal.Open(dsm)
-            dsm_bandarr = dsm_raster.GetRasterBand(1).ReadAsArray()
-            dsm_npy = np.array(dsm_bandarr)
-
-            dtm_raster = gdal.Open(dtm)
-            dtm_bandarr = dtm_raster.GetRasterBand(1).ReadAsArray()
-            dtm_npy = np.array(dtm_bandarr)
-
-            if not os.path.isfile(hat_path):
-                hat_npy = dsm_npy - dtm_npy
-                array_to_raster(hat_npy, reference=dtm, out_path=hat_path, creation_options=["COMPRESS=LZW"])
-
-            if not os.path.isfile(sobel_path):
-                sobel_npy = zobel_filter(
-                        dtm_npy, size=[5, 5], normalised_sobel=False, gaussian_preprocess=False
-                    )
-                array_to_raster(sobel_npy, reference=dtm, out_path=sobel_path, creation_options=["COMPRESS=LZW"])
-
-            vrt = cyclone_temp + os.path.basename(dtm).replace('DTM_', '').replace('.tif', '.vrt')
-            if not os.path.isfile(vrt):
-                gdal.BuildVRT(vrt, [dtm, hat_path, sobel_path], options=gdal.BuildVRTOptions(separate=True, outputSRS='EPSG:25832'))
-            print(dtm, 'done!')
-        print('HAT, SOBEL and VRT files created!')
-
+    print('creating HAT, SOBEL and VRT files...')
         
+    for dsm, dtm in zip(dsm_list_this10km, dtm_list_this10km):
 
-        #check that these files all exist
+        if not (os.path.exists(dsm) and os.path.exists(dtm)):
+            raise Exception("one of these files does not exist", dsm, dtm)
 
-        this_10km_geometry = km10_df[km10_df['tilename'] == tile]['geometry'].iloc[0]
+        sobel_path = cyclone_temp + os.path.basename(dtm).replace('DTM', 'SOBEL')
+        hat_path = cyclone_temp + os.path.basename(dtm).replace('DTM', 'HAT')
+        vrt_path = cyclone_temp + os.path.basename(dtm).replace('DTM_', '').replace('.tif', '.vrt')
 
-        vrt_list = [cyclone_temp + x + '.vrt' for x in km1_namelist]
-        for vrt in vrt_list:
-            if not os.path.isfile(vrt):
+        # os.remove(sobel_path) if os.path.exists(sobel_path) else None
+        # os.remove(hat_path) if os.path.exists(hat_path) else None
+        # os.remove(vrt_path) if os.path.exists(vrt_path) else None
+
+
+        if os.path.exists(hat_path) and os.path.exists(sobel_path) and os.path.exists(vrt_path):
+            print('skipping:', os.path.basename(dtm) + '...' )
+            continue
+        print('creating sobel and hat for:', dtm + '...' )
+        
+        
+        dsm_raster = gdal.Open(dsm)
+        dsm_bandarr = dsm_raster.GetRasterBand(1).ReadAsArray()
+        dsm_npy = np.array(dsm_bandarr)
+
+        dtm_raster = gdal.Open(dtm)
+        dtm_bandarr = dtm_raster.GetRasterBand(1).ReadAsArray()
+        dtm_npy = np.array(dtm_bandarr)
+
+        if not os.path.isfile(hat_path):
+          
+            hat_npy = dsm_npy - dtm_npy
+            array_to_raster(hat_npy, reference=dtm, out_path=hat_path, creation_options=["COMPRESS=LZW"])
+            
+        if not os.path.isfile(sobel_path):
+         
+            sobel_npy = zobel_filter(
+                    dtm_npy, size=[5, 5], normalised_sobel=False, gaussian_preprocess=False
+                )
+            array_to_raster(sobel_npy, reference=dtm, out_path=sobel_path, creation_options=["COMPRESS=LZW"])
+           
+        if not os.path.isfile(vrt_path):
+            gdal.BuildVRT(vrt_path, [dtm, hat_path, sobel_path], options=gdal.BuildVRTOptions(separate=True, outputSRS='EPSG:25832'))
+        print(dtm, 'done!')
+    print('HAT, SOBEL and VRT files created!')
+
+    
+
+    #check that these files all exist
+
+    this_10km_geometry = km10_df[km10_df['tilename'] == tile]['geometry'].iloc[0]
+
+    vrt_list = [cyclone_temp + x + '.vrt' for x in km1_namelist]
+    for vrt in vrt_list:
+        if not os.path.isfile(vrt):
+            a = [os.path.basename(x).replace('DTM_', '').replace('.tif', '') for x in dtm_list]
+            name = os.path.basename(vrt).replace('.vrt', '')
+            part_downloaded_files = name in a
+            if part_downloaded_files:
                 raise Exception('catastrophic error', vrt)
+            else:
+                print(vrt, 'in list of grids, but not is list of files: SKIPPING')
 
 
 
-        print('creating 10km vrt...')
-        gdal.BuildVRT(vrt10kmtile, vrt_list, options=gdal.BuildVRTOptions(outputBounds=getExtent(this_10km_geometry), outputSRS='EPSG:25832'))
-        print('10km vrt created!')
-        
-        finish = time.perf_counter()
-        print('procedure for {} finished in {} seconds'.format(tile, finish - start))
+    print('creating 10km vrt...')
+    gdal.BuildVRT(vrt10kmtile, vrt_list, options=gdal.BuildVRTOptions(outputBounds=getExtent(this_10km_geometry), outputSRS='EPSG:25832'))
+    print('10km vrt created!')
+    
+    finish = time.perf_counter()
+    print('procedure for {} finished in {} seconds'.format(tile, finish - start))
 
-        out_dir = rleverance
-    else:
-        print(f"{vrt10kmtile} already exists, skipping...")
+    out_dir = rleverance
+  
         
 
     if os.path.exists(prediction10kmtif):
@@ -768,3 +795,7 @@ for tile in km10_list:
 
 
 # print("all tiles predicted and saved!")
+
+#%%
+
+
