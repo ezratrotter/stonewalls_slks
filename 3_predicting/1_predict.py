@@ -14,7 +14,7 @@ from matplotlib import pyplot as plt
 import gc
 import keras.backend as K
 import keras
-
+import sys
 gdal.UseExceptions()
 
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
@@ -34,6 +34,25 @@ os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
 ####functions###
 
+def empty_directory(folder):
+    # folder = '/path/to/folder'
+    for filename in os.listdir(folder):
+        file_path = os.path.join(folder, filename)
+        try:
+            if os.path.isfile(file_path) or os.path.islink(file_path):
+                os.unlink(file_path)
+            elif os.path.isdir(file_path):
+                shutil.rmtree(file_path)
+        except Exception as e:
+            print('Failed to delete %s. Reason: %s' % (file_path, e))
+
+
+def empty_directory(folder)
+    try:
+        shutil.rmtree(folder)
+        os.mkdir(folder)
+    except Exception as e:
+        print('Failed to delete %s. Reason: %s' % (folder, e))
 
 def read_raster(model_raster_fname):
     model_dataset = gdal.Open(model_raster_fname)
@@ -429,7 +448,6 @@ def createBuffer(inputfn, outputBufferfn, bufferDist):
 
 
 def smooth_vrt_predictions(model, vrt_filename, output_filename, options):
-    print('test')
     if not os.path.isfile(vrt_filename):
         print(vrt_filename)
         raise Exception("VRT file does not exist")
@@ -507,12 +525,15 @@ def smooth_vrt_predictions(model, vrt_filename, output_filename, options):
         full_weighted > 0.1, 1, full_weighted)
 
     write_raster(bin_full_weighted, vrt_filename, output_filename)
-
+    # clean garbage
+    del ds
 
 
 import gc
 import keras
 import keras.backend as K
+import pickle
+
 
 import glob
 import geopandas as gpd
@@ -549,169 +570,177 @@ def getExtent(geometry):
 
 #read in 10km tiles
 #get list of tiles I want
-leverance_nr = 3
-rdrive_base = '//Niras.int/root\PROJ/10/415/217/20_Aflevering/'
-rleverance = rdrive_base + 'leverance_{}/'.format(leverance_nr)
-cyclone_base = '//pc116900/S Drone div/STENDIGER/'
-cyclone_temp = cyclone_base + 'temp_{}/'.format(leverance_nr)
 
-if not os.path.isdir(rleverance):
-    print('creating leverance dir...')
-    os.mkdir(rleverance)
-if not os.path.isdir(cyclone_temp):
-    print('creating cyclone_temp dir...')
-    os.mkdir(cyclone_temp)
+if __name__ == '__main__':
 
+    leverance_nr = int(sys.argv[1])
+    if leverance_nr not in range(1,10):
+        raise Exception('invalid leverance nr')
+    else:
+        print('running process for leverance: {}'.format(leverance_nr))
 
-km10_df = gpd.read_file(r"\\niras.int\root\PROJ\10\415\217\20_Aflevering/raekkefoelge.gpkg")
-km10_list = km10_df[km10_df['lev_blok'] == leverance_nr]['tilename'].tolist()
-km1_df = gpd.read_file("../data/grids/dki_1km.gpkg")
+    rdrive_base = '//Niras.int/root\PROJ/10/415/217/20_Aflevering/'
+    rleverance = rdrive_base + 'leverance_{}/'.format(leverance_nr)
+    cyclone_base = '//pc116900/S Drone div/STENDIGER/'
+    cyclone_temp = cyclone_base + 'temp_{}/'.format(leverance_nr)
 
-print('assembling list of dtm files...')
-try: dtm_list
-except:
-    dtm_list = [x for x in Path('//pc116900/S Drone div/STENDIGER/DTM').rglob('*.tif')]
-print('list of dtm files assembled!')
-
-for tile in km10_list:
-    vrt10kmtile = cyclone_temp + tile + '.vrt'
-    prediction10kmtif = rleverance + tile + '.tif'
-    if os.path.exists(prediction10kmtif):
-        continue
-   
-
-    print('starting proceduce for {}...'.format(tile))
-
-    km1_namelist = km1_df[km1_df['dki_10km'] == tile]['dki_1km'].tolist()
-    dtm_list_this10km = [str(x) for x in dtm_list if x.name.replace('DTM_', '').replace('.tif', '') in km1_namelist]
-    dsm_list_this10km = [x.replace('DTM', 'DSM').replace('dtm', 'dsm') for x in dtm_list_this10km]
-    
-    if len(km1_namelist) == 0:
-        print('no 1km tiles found for {} - Skipping!'.format(tile))
-        continue
-    
-    for dtm, dsm in zip(dtm_list_this10km, dsm_list_this10km):
-        if not os.path.isfile(dtm) or not os.path.isfile(dsm):
-            raise Exception("catastrphic error", dtm, dsm)
-    print('dtm and dsm files confirmed!')
-        
-    print('creating HAT, SOBEL and VRT files...')
-        
-    for dsm, dtm in zip(dsm_list_this10km, dtm_list_this10km):
-
-        if not (os.path.exists(dsm) and os.path.exists(dtm)):
-            raise Exception("one of these files does not exist", dsm, dtm)
-
-        sobel_path = cyclone_temp + os.path.basename(dtm).replace('DTM', 'SOBEL')
-        hat_path = cyclone_temp + os.path.basename(dtm).replace('DTM', 'HAT')
-        vrt_path = cyclone_temp + os.path.basename(dtm).replace('DTM_', '').replace('.tif', '.vrt')
-
-        # os.remove(sobel_path) if os.path.exists(sobel_path) else None
-        # os.remove(hat_path) if os.path.exists(hat_path) else None
-        # os.remove(vrt_path) if os.path.exists(vrt_path) else None
+    if not os.path.isdir(rleverance):
+        print('creating leverance dir...')
+        os.mkdir(rleverance)
+    if not os.path.isdir(cyclone_temp):
+        print('creating cyclone_temp dir...')
+        os.mkdir(cyclone_temp)
 
 
-        if os.path.exists(hat_path) and os.path.exists(sobel_path) and os.path.exists(vrt_path):
-            print('skipping:', os.path.basename(dtm) + '...' )
+    km10_df = gpd.read_file(r"\\niras.int\root\PROJ\10\415\217\20_Aflevering/raekkefoelge.gpkg")
+    km10_list = km10_df[km10_df['lev_blok'] == leverance_nr]['tilename'].tolist()
+    km1_df = gpd.read_file("../data/grids/dki_1km.gpkg")
+
+    print('assembling list of dtm files...')
+    print(km10_list)
+    print(len(km10_list))
+    picklefile = "dtm_list.pickle"
+    try: 
+        with open(picklefile, "rb") as infile:
+            dtm_list = pickle.load(infile)
+    except:
+        dtm_list = [x for x in Path('//pc116900/S Drone div/STENDIGER/DTM').rglob('*.tif')]
+        with open(picklefile, "wb") as outfile:
+            # "wb" argument opens the file in binary mode
+            pickle.dump(dtm_list, outfile)
+    print('list of dtm files assembled!')
+
+    for tile in km10_list:
+        vrt10kmtile = cyclone_temp + tile + '.vrt'
+        prediction10kmtif = rleverance + tile + '.tif'
+        if os.path.exists(prediction10kmtif):
+            print(prediction10kmtif, 'already exists!')
             continue
-        print('creating sobel and hat for:', dtm + '...' )
-        
-        
-        dsm_raster = gdal.Open(dsm)
-        dsm_bandarr = dsm_raster.GetRasterBand(1).ReadAsArray()
-        dsm_npy = np.array(dsm_bandarr)
+    
+        print('starting proceduce for {}...'.format(tile))
 
-        dtm_raster = gdal.Open(dtm)
-        dtm_bandarr = dtm_raster.GetRasterBand(1).ReadAsArray()
-        dtm_npy = np.array(dtm_bandarr)
-
-        if not os.path.isfile(hat_path):
-          
-            hat_npy = dsm_npy - dtm_npy
-            array_to_raster(hat_npy, reference=dtm, out_path=hat_path, creation_options=["COMPRESS=LZW"])
+        km1_namelist = km1_df[km1_df['dki_10km'] == tile]['dki_1km'].tolist()
+        dtm_list_this10km = [str(x) for x in dtm_list if x.name.replace('DTM_', '').replace('.tif', '') in km1_namelist]
+        dsm_list_this10km = [x.replace('DTM', 'DSM').replace('dtm', 'dsm') for x in dtm_list_this10km]
+        
+        if len(km1_namelist) == 0:
+            print('no 1km tiles found for {} - Skipping!'.format(tile))
+            continue
+        
+        for dtm, dsm in zip(dtm_list_this10km, dsm_list_this10km):
+            if not os.path.isfile(dtm) or not os.path.isfile(dsm):
+                raise Exception("dtm or dsm missing from source files", dtm, dsm)
+       
             
-        if not os.path.isfile(sobel_path):
-         
-            sobel_npy = zobel_filter(
-                    dtm_npy, size=[5, 5], normalised_sobel=False, gaussian_preprocess=False
-                )
-            array_to_raster(sobel_npy, reference=dtm, out_path=sobel_path, creation_options=["COMPRESS=LZW"])
-           
-        if not os.path.isfile(vrt_path):
-            gdal.BuildVRT(vrt_path, [dtm, hat_path, sobel_path], options=gdal.BuildVRTOptions(separate=True, outputSRS='EPSG:25832'))
-        print(dtm, 'done!')
-    print('HAT, SOBEL and VRT files created!')
+        print('creating HAT, SOBEL and VRT files...')
+            
+        for dsm, dtm in zip(dsm_list_this10km, dtm_list_this10km):
 
-    
+            sobel_path = cyclone_temp + os.path.basename(dtm).replace('DTM', 'SOBEL')
+            hat_path = cyclone_temp + os.path.basename(dtm).replace('DTM', 'HAT')
+            vrt_path = cyclone_temp + os.path.basename(dtm).replace('DTM_', '').replace('.tif', '.vrt')
 
-    #check that these files all exist
-
-    this_10km_geometry = km10_df[km10_df['tilename'] == tile]['geometry'].iloc[0]
-
-    vrt_list = [cyclone_temp + x + '.vrt' for x in km1_namelist]
-    for vrt in vrt_list:
-        if not os.path.isfile(vrt):
-            a = [os.path.basename(x).replace('DTM_', '').replace('.tif', '') for x in dtm_list]
-            name = os.path.basename(vrt).replace('.vrt', '')
-            part_downloaded_files = name in a
-            if part_downloaded_files:
-                raise Exception('catastrophic error', vrt)
-            else:
-                print(vrt, 'in list of grids, but not is list of files: SKIPPING')
+            # os.remove(sobel_path) if os.path.exists(sobel_path) else None
+            # os.remove(hat_path) if os.path.exists(hat_path) else None
+            # os.remove(vrt_path) if os.path.exists(vrt_path) else None
 
 
+            if os.path.exists(hat_path) and os.path.exists(sobel_path) and os.path.exists(vrt_path):
+                print('skipping:', os.path.basename(dtm) + '...' )
+                continue
+            
+            
+            dsm_raster = gdal.Open(dsm)
+            dsm_bandarr = dsm_raster.GetRasterBand(1).ReadAsArray()
+            dsm_npy = np.array(dsm_bandarr)
 
-    print('creating 10km vrt...')
-    gdal.BuildVRT(vrt10kmtile, vrt_list, options=gdal.BuildVRTOptions(outputBounds=getExtent(this_10km_geometry), outputSRS='EPSG:25832'))
-    print('10km vrt created!')
-    
-    finish = time.perf_counter()
-    print('procedure for {} finished in {} seconds'.format(tile, finish - start))
+            dtm_raster = gdal.Open(dtm)
+            dtm_bandarr = dtm_raster.GetRasterBand(1).ReadAsArray()
+            dtm_npy = np.array(dtm_bandarr)
 
-    out_dir = rleverance
-  
+            if not os.path.isfile(hat_path):
+                print('creating HAT for:', os.path.basename(hat_path) + '...' )
+                
+                hat_npy = dsm_npy - dtm_npy
+                array_to_raster(hat_npy, reference=dtm, out_path=hat_path, creation_options=["COMPRESS=LZW"])
+                
+            if not os.path.isfile(sobel_path):
+                print('creating SOBEL for:', os.path.basename(sobel_path) + '...' )
+
+                sobel_npy = zobel_filter(
+                        dtm_npy, size=[5, 5], normalised_sobel=False, gaussian_preprocess=False
+                    )
+                array_to_raster(sobel_npy, reference=dtm, out_path=sobel_path, creation_options=["COMPRESS=LZW"])
+            
+            if not os.path.isfile(vrt_path):
+                gdal.BuildVRT(vrt_path, [dtm, hat_path, sobel_path], options=gdal.BuildVRTOptions(separate=True, outputSRS='EPSG:25832'))
+                print('creating VRT for:', os.path.basename(vrt_path) + '...' )
+            print(os.path.basenames(dtm), 'all files created!')
+        print('HAT, SOBEL and VRT files created!')
+
         
 
-    if os.path.exists(prediction10kmtif):
-        print(f"skipping {tile}, prediction already exists")
-        continue
+        #check that these files all exist
 
+        this_10km_geometry = km10_df[km10_df['tilename'] == tile]['geometry'].iloc[0]
+
+        vrt_list = [cyclone_temp + x + '.vrt' for x in km1_namelist]
+        for vrt in vrt_list:
+            if not os.path.isfile(vrt):
+                a = [os.path.basename(x).replace('DTM_', '').replace('.tif', '') for x in dtm_list]
+                name = os.path.basename(vrt).replace('.vrt', '')
+                part_downloaded_files = name in a
+                if part_downloaded_files:
+                    raise Exception('catastrophic error', vrt)
+                else:
+                    print(vrt, 'in list of grids, but not is list of files: SKIPPING')
+
+
+
+        gdal.BuildVRT(vrt10kmtile, vrt_list, options=gdal.BuildVRTOptions(outputBounds=getExtent(this_10km_geometry), outputSRS='EPSG:25832'))
+        print('10km vrt created!')
+        
+        finish = time.perf_counter()
+
+        print('checking that all files exist in temporary folder in preparation for predicting...')
+        expected_nr_files = (len(dsm_list_this10km) * 3) + 1
+        actual_nr_files = glob.glob(cyclone_temp + '*')
+        if expected_nr_files != actual_nr_files :
+            print("wrong number of files in list")
+            print("expected: {}, actual: {}".format(expected_nr_files, actual_nr_files))
+            raise Exception              
+
+        # if os.path.exists(prediction10kmtif):
+        #     print(f"skipping {tile}, prediction already exists")
+        #     continue
+
+        
+        model_path = "V:/2022-03-31_Stendiger_EZRA/code/logs/"
+
+        custom_objects = {
+            'binary_focal_loss_plus_jaccard_loss': sm.losses.binary_focal_jaccard_loss,
+            'iou_score': sm.metrics.iou_score
+        }
+        print('loading model...')
+        model = load_model(model_path + 'model.25-0.832-0.190-0.984.h5',
+                        custom_objects=custom_objects)
+      
+        options = {
+            'n_bands_x': 3,
+            'n_classes': 2,
+            'patch_size': 64,
+            'overlap': 2,
+            'batch_size': 128,
+            'steps_per_predict': 128,
+            'sigmoid_width': 3,
+            'sigmoid_steepness': 7
+        }
+        print(f"PREDICTING FOR {os.path.basename(prediction10kmtif)}... ")
+        smooth_vrt_predictions(model, vrt10kmtile, prediction10kmtif, options)
     
-    model_path = "V:/2022-03-31_Stendiger_EZRA/code/logs/"
-
-    custom_objects = {
-        'binary_focal_loss_plus_jaccard_loss': sm.losses.binary_focal_jaccard_loss,
-        'iou_score': sm.metrics.iou_score
-    }
-    print('loading model...')
-    model = load_model(model_path + 'model.25-0.832-0.190-0.984.h5',
-                    custom_objects=custom_objects)
-    print('model loaded!')
-    # vrt = '//pc116900/S Drone div/STENDIGER/vrts/10kmv2/10km_621_71.vrt'
-
-
-    # if os.path.basename(vrt) != '10km_608_47.vrt':
-    #     print(vrt, 'skipped')
-    #     continue
-    if os.path.exists(prediction10kmtif):
-        print(f"{prediction10kmtif} was already predicted, skipping...")
-        continue
-
-    options = {
-        'n_bands_x': 3,
-        'n_classes': 2,
-        'patch_size': 64,
-        'overlap': 2,
-        'batch_size': 128,
-        'steps_per_predict': 128,
-        'sigmoid_width': 3,
-        'sigmoid_steepness': 7
-    }
-    print(f"predicting {prediction10kmtif}... ")
-    smooth_vrt_predictions(model, vrt10kmtile, prediction10kmtif, options)
-    print(f"{prediction10kmtif} predicted!")
-# %%
-#%%
+        empty_directory(cyclone_temp)
+        
+        print('------ cyclone directory clean -----')
 
 
 # upload model
