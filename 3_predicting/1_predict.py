@@ -36,6 +36,7 @@ os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
 def empty_directory(folder):
     # folder = '/path/to/folder'
+
     for filename in os.listdir(folder):
         file_path = os.path.join(folder, filename)
         try:
@@ -47,7 +48,7 @@ def empty_directory(folder):
             print('Failed to delete %s. Reason: %s' % (file_path, e))
 
 
-# def empty_directory(folder)
+# def empty_directory(folder):
 #     try:
 #         shutil.rmtree(folder)
 #         os.mkdir(folder)
@@ -526,7 +527,7 @@ def smooth_vrt_predictions(model, vrt_filename, output_filename, options):
 
     write_raster(bin_full_weighted, vrt_filename, output_filename)
     # clean garbage
-    del ds
+    ds = None
 
 
 import gc
@@ -568,16 +569,18 @@ def getExtent(geometry):
             ymax = y
     return (xmin, ymin, xmax, ymax)
 
-#read in 10km tiles
-#get list of tiles I want
+##########################################################################################################################
+##########################################################################################################################
+##########################################################################################################################
 
-if __name__ == '__main__':
+def main():
+
+    print('##########GPU: ', tf.test.gpu_device_name())
+
 
     leverance_nr = int(sys.argv[1])
-    rdrive_base = '//Niras.int/root\PROJ/10/415/217/20_Aflevering/'
-    rleverance = rdrive_base + 'leverance_{}/'.format(leverance_nr)
-    cyclone_base = '//pc116900/S Drone div/STENDIGER/'
-    cyclone_temp = cyclone_base + 'temp_{}/'.format(leverance_nr)
+    rleverance = f'//Niras.int/root\PROJ/10/415/217/20_Aflevering/leverance_{leverance_nr}/'
+    cyclone_temp = f'//pc116900/S Drone div/STENDIGER/bin_leverance_{leverance_nr}/'
 
     if leverance_nr not in range(1,10):
         raise Exception('invalid leverance nr')
@@ -596,8 +599,8 @@ if __name__ == '__main__':
     km1_df = gpd.read_file("../data/grids/dki_1km.gpkg")
 
     print('assembling list of dtm files...')
+    print(f'{len(km10_list)} 1km grids in 10km area')
     print(km10_list)
-    print(len(km10_list))
     picklefile = "dtm_list.pickle"
     try: 
         with open(picklefile, "rb") as infile:
@@ -616,7 +619,7 @@ if __name__ == '__main__':
             print(prediction10kmtif, 'already exists!')
             continue
     
-        print('starting proceduce for {}...'.format(tile))
+        print('------STARTING PROCEDURE: {}------'.format(tile))
 
         km1_namelist = km1_df[km1_df['dki_10km'] == tile]['dki_1km'].tolist()
         dtm_list_this10km = [str(x) for x in dtm_list if x.name.replace('DTM_', '').replace('.tif', '') in km1_namelist]
@@ -653,13 +656,13 @@ if __name__ == '__main__':
             dtm_npy = np.array(dtm_bandarr)
 
             if not os.path.isfile(hat_path):
-                print('creating HAT for:', os.path.basename(hat_path) + '...' )
+                print('creating HAT:', os.path.basename(hat_path))
                 
                 hat_npy = dsm_npy - dtm_npy
                 array_to_raster(hat_npy, reference=dtm, out_path=hat_path, creation_options=["COMPRESS=LZW"])
                 
             if not os.path.isfile(sobel_path):
-                print('creating SOBEL for:', os.path.basename(sobel_path) + '...' )
+                print('creating SOBEL:', os.path.basename(sobel_path))
 
                 sobel_npy = zobel_filter(
                         dtm_npy, size=[5, 5], normalised_sobel=False, gaussian_preprocess=False
@@ -669,6 +672,8 @@ if __name__ == '__main__':
             if not os.path.isfile(vrt_path):
                 gdal.BuildVRT(vrt_path, [dtm, hat_path, sobel_path], options=gdal.BuildVRTOptions(separate=True, outputSRS='EPSG:25832'))
                 print('creating VRT for:', os.path.basename(vrt_path) + '...' )
+            dsm_raster = None
+            dtm_raster = None
             print(os.path.basename(dtm), 'all files created!')
         print('HAT, SOBEL and VRT files created!')
 
@@ -699,10 +704,10 @@ if __name__ == '__main__':
         print('checking that all files exist in temporary folder in preparation for predicting...')
         expected_nr_files = (len(dsm_list_this10km) * 3) + 1
         actual_nr_files = len(glob.glob(cyclone_temp + '*'))
-        if expected_nr_files != actual_nr_files :
-            print("wrong number of files in list")
-            print("expected: {}, actual: {}".format(expected_nr_files, actual_nr_files))
-            raise Exception              
+        # if expected_nr_files != actual_nr_files :
+        #     print("wrong number of files in list")
+        #     print("expected: {}, actual: {}".format(expected_nr_files, actual_nr_files))
+        #     raise Exception              
 
         # if os.path.exists(prediction10kmtif):
         #     print(f"skipping {tile}, prediction already exists")
@@ -731,10 +736,21 @@ if __name__ == '__main__':
         }
         print(f"PREDICTING FOR {os.path.basename(prediction10kmtif)}... ")
         smooth_vrt_predictions(model, vrt10kmtile, prediction10kmtif, options)
-    
+
+        for v in vrt_list:
+            v = None
+        vrt10kmtile = None
+
         empty_directory(cyclone_temp)
         
         print('------ cyclone directory clean -----')
+
+#read in 10km tiles
+#get list of tiles I want
+
+if __name__ == '__main__':
+    main()
+  
 
 
 # upload model
