@@ -47,12 +47,12 @@ def empty_directory(folder):
             print('Failed to delete %s. Reason: %s' % (file_path, e))
 
 
-def empty_directory(folder)
-    try:
-        shutil.rmtree(folder)
-        os.mkdir(folder)
-    except Exception as e:
-        print('Failed to delete %s. Reason: %s' % (folder, e))
+# def empty_directory(folder)
+#     try:
+#         shutil.rmtree(folder)
+#         os.mkdir(folder)
+#     except Exception as e:
+#         print('Failed to delete %s. Reason: %s' % (folder, e))
 
 def read_raster(model_raster_fname):
     model_dataset = gdal.Open(model_raster_fname)
@@ -574,16 +574,15 @@ def getExtent(geometry):
 if __name__ == '__main__':
 
     leverance_nr = int(sys.argv[1])
-    if leverance_nr not in range(1,10):
-        raise Exception('invalid leverance nr')
-    else:
-        print('running process for leverance: {}'.format(leverance_nr))
-
     rdrive_base = '//Niras.int/root\PROJ/10/415/217/20_Aflevering/'
     rleverance = rdrive_base + 'leverance_{}/'.format(leverance_nr)
     cyclone_base = '//pc116900/S Drone div/STENDIGER/'
     cyclone_temp = cyclone_base + 'temp_{}/'.format(leverance_nr)
 
+    if leverance_nr not in range(1,10):
+        raise Exception('invalid leverance nr')
+    else:
+        print('running process for leverance: {}'.format(leverance_nr))
     if not os.path.isdir(rleverance):
         print('creating leverance dir...')
         os.mkdir(rleverance)
@@ -640,11 +639,6 @@ if __name__ == '__main__':
             hat_path = cyclone_temp + os.path.basename(dtm).replace('DTM', 'HAT')
             vrt_path = cyclone_temp + os.path.basename(dtm).replace('DTM_', '').replace('.tif', '.vrt')
 
-            # os.remove(sobel_path) if os.path.exists(sobel_path) else None
-            # os.remove(hat_path) if os.path.exists(hat_path) else None
-            # os.remove(vrt_path) if os.path.exists(vrt_path) else None
-
-
             if os.path.exists(hat_path) and os.path.exists(sobel_path) and os.path.exists(vrt_path):
                 print('skipping:', os.path.basename(dtm) + '...' )
                 continue
@@ -675,7 +669,7 @@ if __name__ == '__main__':
             if not os.path.isfile(vrt_path):
                 gdal.BuildVRT(vrt_path, [dtm, hat_path, sobel_path], options=gdal.BuildVRTOptions(separate=True, outputSRS='EPSG:25832'))
                 print('creating VRT for:', os.path.basename(vrt_path) + '...' )
-            print(os.path.basenames(dtm), 'all files created!')
+            print(os.path.basename(dtm), 'all files created!')
         print('HAT, SOBEL and VRT files created!')
 
         
@@ -704,7 +698,7 @@ if __name__ == '__main__':
 
         print('checking that all files exist in temporary folder in preparation for predicting...')
         expected_nr_files = (len(dsm_list_this10km) * 3) + 1
-        actual_nr_files = glob.glob(cyclone_temp + '*')
+        actual_nr_files = len(glob.glob(cyclone_temp + '*'))
         if expected_nr_files != actual_nr_files :
             print("wrong number of files in list")
             print("expected: {}, actual: {}".format(expected_nr_files, actual_nr_files))
@@ -827,4 +821,6 @@ if __name__ == '__main__':
 
 #%%
 
+
+#%%
 
