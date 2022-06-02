@@ -1,19 +1,29 @@
-# %%
+import pickle
+
+yellow_path = "V:/2022-03-31_Stendiger_EZRA/buteo"
+import sys; sys.path.append(yellow_path); sys.path.append(yellow_path + 'buteo/'); sys.path.append(yellow_path + 'buteo/machine_learning/'); sys.path.append(yellow_path + 'buteo/filters/'); sys.path.append(yellow_path + 'buteo/raster/'); sys.path.append(yellow_path + 'buteo/convolutions/')
+from buteo.raster.io import *
+
+import shutil
 import scipy
 import os
-from glob import glob
+import glob
 from osgeo import gdal, ogr, gdalconst
+import geopandas as gpd
+from matplotlib import pyplot as plt
+from pathlib import Path
+
+
 import tensorflow as tf
+import keras
+import keras.backend as K
 from keras.layers import LayerNormalization
 from tensorflow.keras.models import load_model
 from tensorflow.keras.utils import get_custom_objects
+from tensorflow.python.client import device_lib
 import segmentation_models as sm
 import numpy as np
-from tensorflow.python.client import device_lib
-from matplotlib import pyplot as plt
 import gc
-import keras.backend as K
-import keras
 import sys
 from multiprocessing.pool import ThreadPool
 
@@ -543,29 +553,6 @@ def smooth_vrt_predictions(model, vrt_filename, output_filename, options):
     # clean garbage
     ds = None
 
-
-import gc
-import keras
-import keras.backend as K
-import pickle
-
-
-import glob
-import geopandas as gpd
-import shutil
-import time
-from osgeo import ogr, gdal
-import numpy as np
-from zobel_filter import zobel_filter
-from pathlib import Path
-
-yellow_path = "V:/2022-03-31_Stendiger_EZRA/buteo"
-import sys; sys.path.append(yellow_path); sys.path.append(yellow_path + 'buteo/'); sys.path.append(yellow_path + 'buteo/machine_learning/'); sys.path.append(yellow_path + 'buteo/filters/'); sys.path.append(yellow_path + 'buteo/raster/'); sys.path.append(yellow_path + 'buteo/convolutions/')
-from buteo.raster.io import *
-from scipy import ndimage
-
-start = time.perf_counter()
-
 def getExtent(geometry):
     coords = geometry.exterior.coords
     xmin = float('inf')
@@ -593,24 +580,25 @@ def main():
 
 
     leverance_nr = int(sys.argv[1])
-    rleverance = f'//Niras.int/root\PROJ/10/415/217/20_Aflevering/leverance_{leverance_nr}/'
-    cyclone_temp = f'//pc116900/S Drone div/STENDIGER/bin_leverance_{leverance_nr}/'
+    tmppredictdir = f'leverance_predictions_{leverance_nr}/'
+    tmpdir = f'leverance_temp_{leverance_nr}/'
 
     if leverance_nr not in range(1,10):
         raise Exception('invalid leverance nr')
-    else:
-        print('running process for leverance: {}'.format(leverance_nr))
-    if not os.path.isdir(rleverance):
-        print('creating leverance dir...')
-        os.mkdir(rleverance)
-    if not os.path.isdir(cyclone_temp):
-        print('creating cyclone_temp dir...')
-        os.mkdir(cyclone_temp)
 
+    if not os.path.isdir(tmppredictdir):
+        print('creating leverance dir...')
+        os.mkdir(tmppredictdir)
+
+    if not os.path.isdir(tmpdir):
+        print('creating tmpdir dir...')
+        os.mkdir(tmpdir)
+
+    print('running process for leverance: {}'.format(leverance_nr))
 
     km10_df = gpd.read_file(r"\\niras.int\root\PROJ\10\415\217\20_Aflevering/raekkefoelge.gpkg")
     km10_list = km10_df[km10_df['lev_blok'] == leverance_nr]['tilename'].tolist()
-    km1_df = gpd.read_file("../data/grids/dki_1km.gpkg")
+    km1_df = gpd.read_file("data/grids/dki_1km.gpkg")
 
     print('assembling list of dtm files...')
     print(f'{len(km10_list)} 1km grids in 10km area')
@@ -627,8 +615,8 @@ def main():
     print('list of dtm files assembled!')
 
     for tile in km10_list:
-        vrt10kmtile = cyclone_temp + tile + '.vrt'
-        prediction10kmtif = rleverance + tile + '.tif'
+        vrt10kmtile = tmpdir + tile + '.vrt'
+        prediction10kmtif = tmppredictdir + tile + '.tif'
         if os.path.exists(prediction10kmtif):
             print(prediction10kmtif, 'already exists!')
             continue
@@ -643,12 +631,9 @@ def main():
             print('no 1km tiles found for {} - Skipping!'.format(tile))
             continue
         
-        for dtm, dsm in zip(dtm_list_this10km, dsm_list_this10km):
-            if not os.path.isfile(dtm) or not os.path.isfile(dsm):
-                raise Exception("dtm or dsm missing from source files", dtm, dsm)
-       
+              
         print('copying files')
-        tmpdir = r'D:\TMP'
+
 
         dsm_list_this10km_tmp = [f'{tmpdir}/{os.path.basename(v)}' for v in dsm_list_this10km]
         filetuples = zip(dsm_list_this10km,dsm_list_this10km_tmp)
@@ -664,13 +649,13 @@ def main():
         def make_hat_sobel(filenames):
             dsm, dtm = filenames
 
-            sobel_path = cyclone_temp + os.path.basename(dtm).replace('DTM', 'SOBEL')
-            hat_path = cyclone_temp + os.path.basename(dtm).replace('DTM', 'HAT')
-            vrt_path = cyclone_temp + os.path.basename(dtm).replace('DTM_', '').replace('.tif', '.vrt')
+            sobel_path = tmpdir + os.path.basename(dtm).replace('DTM', 'SOBEL')
+            hat_path = tmpdir + os.path.basename(dtm).replace('DTM', 'HAT')
+            vrt_path = tmpdir + os.path.basename(dtm).replace('DTM_', '').replace('.tif', '.vrt')
 
             if os.path.exists(hat_path) and os.path.exists(sobel_path) and os.path.exists(vrt_path):
                 print('skipping:', os.path.basename(dtm) + '...' )
-                continue
+                return vrt_path
             
             
             dsm_raster = gdal.Open(dsm)
@@ -701,19 +686,15 @@ def main():
             dsm_raster = None
             dtm_raster = None
             print(os.path.basename(dtm), 'all files created!')
+            return vrt_path
         
         
         results = ThreadPool(8).imap(make_hat_sobel, zip(dsm_list_this10km_tmp, dtm_list_this10km_tmp))
-        tiles = [tile for tile in results]
+        vrt_list = [vrt_tile for vrt_tile in results]
         print('HAT, SOBEL and VRT files created!')
-
-        
-
-        #check that these files all exist
 
         this_10km_geometry = km10_df[km10_df['tilename'] == tile]['geometry'].iloc[0]
 
-        vrt_list = [cyclone_temp + x + '.vrt' for x in km1_namelist]
         for vrt in vrt_list:
             if not os.path.isfile(vrt):
                 a = [os.path.basename(x).replace('DTM_', '').replace('.tif', '') for x in dtm_list]
@@ -728,12 +709,7 @@ def main():
 
         gdal.BuildVRT(vrt10kmtile, vrt_list, options=gdal.BuildVRTOptions(outputBounds=getExtent(this_10km_geometry), outputSRS='EPSG:25832'))
         print('10km vrt created!')
-        
-        finish = time.perf_counter()
-
-        print('checking that all files exist in temporary folder in preparation for predicting...')
-        expected_nr_files = (len(dsm_list_this10km) * 3) + 1
-        actual_nr_files = len(glob.glob(cyclone_temp + '*'))
+               
         # if expected_nr_files != actual_nr_files :
         #     print("wrong number of files in list")
         #     print("expected: {}, actual: {}".format(expected_nr_files, actual_nr_files))
@@ -771,7 +747,7 @@ def main():
             v = None
         vrt10kmtile = None
 
-        empty_directory(cyclone_temp)
+        empty_directory(tmpdir)
         
         print('------ cyclone directory clean -----')
 
