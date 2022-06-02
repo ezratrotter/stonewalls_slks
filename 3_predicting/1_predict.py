@@ -600,9 +600,9 @@ def main():
     km10_list = km10_df[km10_df['lev_blok'] == leverance_nr]['tilename'].tolist()
     km1_df = gpd.read_file("data/grids/dki_1km.gpkg")
 
-    print('assembling list of dtm files...')
     print(f'{len(km10_list)} 1km grids in 10km area')
     print(km10_list)
+    print('assembling list of dtm files...')    
     picklefile = "dtm_list.pickle"
     try: 
         with open(picklefile, "rb") as infile:
