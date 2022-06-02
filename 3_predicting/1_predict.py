@@ -15,6 +15,8 @@ import gc
 import keras.backend as K
 import keras
 import sys
+from multiprocessing.pool import ThreadPool
+
 gdal.UseExceptions()
 
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
@@ -33,6 +35,18 @@ os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 # device_lib.list_local_devices()
 
 ####functions###
+
+#%%
+
+def copyfiles(filetuples, nthreads):
+    def copyfile(tuple):
+        src,dst = tuple
+        shutil.copy(src,dst)
+    
+    results = ThreadPool(nthreads).imap(copyfile, filetuples)
+    tiles = [tile for tile in results]
+
+#%%
 
 def empty_directory(folder):
     # folder = '/path/to/folder'
@@ -633,10 +647,22 @@ def main():
             if not os.path.isfile(dtm) or not os.path.isfile(dsm):
                 raise Exception("dtm or dsm missing from source files", dtm, dsm)
        
-            
+        print('copying files')
+        tmpdir = r'D:\TMP'
+
+        dsm_list_this10km_tmp = [f'{tmpdir}/{os.path.basename(v)}' for v in dsm_list_this10km]
+        filetuples = zip(dsm_list_this10km,dsm_list_this10km_tmp)
+        copyfiles(filetuples, 8)
+
+        dtm_list_this10km_tmp = [f'{tmpdir}/{os.path.basename(v)}' for v in dtm_list_this10km]
+        filetuples = zip(dsm_list_this10km,dtm_list_this10km_tmp)
+        copyfiles(filetuples, 8)
+
         print('creating HAT, SOBEL and VRT files...')
-            
-        for dsm, dtm in zip(dsm_list_this10km, dtm_list_this10km):
+        
+        #for dsm, dtm in zip(dsm_list_this10km_tmp, dtm_list_this10km_tmp):
+        def make_hat_sobel(filenames):
+            dsm, dtm = filenames
 
             sobel_path = cyclone_temp + os.path.basename(dtm).replace('DTM', 'SOBEL')
             hat_path = cyclone_temp + os.path.basename(dtm).replace('DTM', 'HAT')
@@ -675,6 +701,10 @@ def main():
             dsm_raster = None
             dtm_raster = None
             print(os.path.basename(dtm), 'all files created!')
+        
+        
+        results = ThreadPool(8).imap(make_hat_sobel, zip(dsm_list_this10km_tmp, dtm_list_this10km_tmp))
+        tiles = [tile for tile in results]
         print('HAT, SOBEL and VRT files created!')
 
         
@@ -729,7 +759,7 @@ def main():
             'n_classes': 2,
             'patch_size': 64,
             'overlap': 2,
-            'batch_size': 128,
+            'batch_size': 1024,
             'steps_per_predict': 128,
             'sigmoid_width': 3,
             'sigmoid_steepness': 7
