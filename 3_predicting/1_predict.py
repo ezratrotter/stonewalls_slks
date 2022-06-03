@@ -1,3 +1,4 @@
+#%%
 import pickle
 
 yellow_path = "V:/2022-03-31_Stendiger_EZRA/buteo"
@@ -12,7 +13,7 @@ from osgeo import gdal, ogr, gdalconst
 import geopandas as gpd
 from matplotlib import pyplot as plt
 from pathlib import Path
-
+from zobel_filter import zobel_filter
 
 import tensorflow as tf
 import keras
@@ -46,7 +47,6 @@ os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
 ####functions###
 
-#%%
 
 def copyfiles(filetuples, nthreads):
     def copyfile(tuple):
@@ -56,7 +56,6 @@ def copyfiles(filetuples, nthreads):
     results = ThreadPool(nthreads).imap(copyfile, filetuples)
     tiles = [tile for tile in results]
 
-#%%
 
 def empty_directory(folder):
     # folder = '/path/to/folder'
@@ -579,9 +578,10 @@ def main():
     print('##########GPU: ', tf.test.gpu_device_name())
 
 
-    leverance_nr = int(sys.argv[1])
-    tmppredictdir = f'leverance_predictions_{leverance_nr}/'
-    tmpdir = f'leverance_temp_{leverance_nr}/'
+    # leverance_nr = int(sys.argv[1])
+    leverance_nr = 8
+    tmppredictdir = os.path.abspath(f'leverance_predictions_{leverance_nr}/') + '/'
+    tmpdir = os.path.abspath(f'leverance_temp_{leverance_nr}/') + '/'
 
     if leverance_nr not in range(1,10):
         raise Exception('invalid leverance nr')
@@ -596,9 +596,13 @@ def main():
 
     print('running process for leverance: {}'.format(leverance_nr))
 
-    km10_df = gpd.read_file(r"\\niras.int\root\PROJ\10\415\217\20_Aflevering/raekkefoelge.gpkg")
+    km10_df = gpd.read_file("//niras.int/root/PROJ/10/415/217/20_Aflevering/raekkefoelge.gpkg")
     km10_list = km10_df[km10_df['lev_blok'] == leverance_nr]['tilename'].tolist()
-    km1_df = gpd.read_file("data/grids/dki_1km.gpkg")
+
+    try:
+        km1_df = gpd.read_file("data/grids/dki_1km.gpkg")
+    except:
+        km1_df = gpd.read_file("../data/grids/dki_1km.gpkg")
 
     print(f'{len(km10_list)} 1km grids in 10km area')
     print(km10_list)
@@ -612,7 +616,11 @@ def main():
         with open(picklefile, "wb") as outfile:
             # "wb" argument opens the file in binary mode
             pickle.dump(dtm_list, outfile)
+
+    parsed_dtm_list = [os.path.abspath(str(x)) for x in dtm_list]
+
     print('list of dtm files assembled!')
+
 
     for tile in km10_list:
         vrt10kmtile = tmpdir + tile + '.vrt'
@@ -624,45 +632,62 @@ def main():
         print('------STARTING PROCEDURE: {}------'.format(tile))
 
         km1_namelist = km1_df[km1_df['dki_10km'] == tile]['dki_1km'].tolist()
-        dtm_list_this10km = [str(x) for x in dtm_list if x.name.replace('DTM_', '').replace('.tif', '') in km1_namelist]
-        dsm_list_this10km = [x.replace('DTM', 'DSM').replace('dtm', 'dsm') for x in dtm_list_this10km]
-        
+        print(f'{len(km1_namelist)} 1km grids in 10km area')
+        print(km1_namelist)
         if len(km1_namelist) == 0:
             print('no 1km tiles found for {} - Skipping!'.format(tile))
             continue
+        
+
+        filtered_dtm_list = [x for x in parsed_dtm_list if os.path.basename(x).replace('DTM_', '').replace('.tif', '') in km1_namelist]
+        tmp_filtered_dtm_list = [f'{tmpdir}{os.path.basename(v)}' for v in filtered_dtm_list]
+        filetuples = zip(filtered_dtm_list, tmp_filtered_dtm_list)
+        copyfiles(filetuples, 8)
+        
+        
+        filtered_dsm_list = [x.replace('DTM', 'DSM').replace('dtm', 'dsm') for x in filtered_dtm_list]
+        tmp_filtered_dsm_list = [x.replace('DTM', 'DSM').replace('dtm', 'dsm') for x in tmp_filtered_dtm_list]
+        filetuples = zip(filtered_dsm_list,tmp_filtered_dsm_list)
+        copyfiles(filetuples, 8)
+
+        print(tmp_filtered_dsm_list)
+        print(tmp_filtered_dtm_list)
         
               
         print('copying files')
 
 
-        dsm_list_this10km_tmp = [f'{tmpdir}/{os.path.basename(v)}' for v in dsm_list_this10km]
-        filetuples = zip(dsm_list_this10km,dsm_list_this10km_tmp)
-        copyfiles(filetuples, 8)
 
-        dtm_list_this10km_tmp = [f'{tmpdir}/{os.path.basename(v)}' for v in dtm_list_this10km]
-        filetuples = zip(dsm_list_this10km,dtm_list_this10km_tmp)
-        copyfiles(filetuples, 8)
 
         print('creating HAT, SOBEL and VRT files...')
-        
+
         #for dsm, dtm in zip(dsm_list_this10km_tmp, dtm_list_this10km_tmp):
         def make_hat_sobel(filenames):
             dsm, dtm = filenames
 
-            sobel_path = tmpdir + os.path.basename(dtm).replace('DTM', 'SOBEL')
-            hat_path = tmpdir + os.path.basename(dtm).replace('DTM', 'HAT')
-            vrt_path = tmpdir + os.path.basename(dtm).replace('DTM_', '').replace('.tif', '.vrt')
+            dtm_path = os.path.abspath(dtm)
+            dsm_path = os.path.abspath(dsm)
+            sobel_path = os.path.abspath(tmpdir + os.path.basename(dtm).replace('DTM', 'SOBEL'))
+            hat_path = os.path.abspath(tmpdir + os.path.basename(dtm).replace('DTM', 'HAT'))
+
+            vrt_path = os.path.abspath(tmpdir + os.path.basename(dtm).replace('DTM_', '').replace('.tif', '.vrt'))
+
+            # print('dtm:',dtm_path)
+            # print('dsm:',dsm_path)
+            # print('sobel:',sobel_path)
+            # print('hat:',hat_path)
+            # print('vrt:',vrt_path)
 
             if os.path.exists(hat_path) and os.path.exists(sobel_path) and os.path.exists(vrt_path):
                 print('skipping:', os.path.basename(dtm) + '...' )
                 return vrt_path
             
             
-            dsm_raster = gdal.Open(dsm)
+            dsm_raster = gdal.Open(dsm_path)
             dsm_bandarr = dsm_raster.GetRasterBand(1).ReadAsArray()
             dsm_npy = np.array(dsm_bandarr)
 
-            dtm_raster = gdal.Open(dtm)
+            dtm_raster = gdal.Open(dtm_path)
             dtm_bandarr = dtm_raster.GetRasterBand(1).ReadAsArray()
             dtm_npy = np.array(dtm_bandarr)
 
@@ -670,7 +695,7 @@ def main():
                 print('creating HAT:', os.path.basename(hat_path))
                 
                 hat_npy = dsm_npy - dtm_npy
-                array_to_raster(hat_npy, reference=dtm, out_path=hat_path, creation_options=["COMPRESS=LZW"])
+                array_to_raster(hat_npy, reference=dtm_path, out_path=hat_path, creation_options=["COMPRESS=LZW"])
                 
             if not os.path.isfile(sobel_path):
                 print('creating SOBEL:', os.path.basename(sobel_path))
@@ -678,18 +703,18 @@ def main():
                 sobel_npy = zobel_filter(
                         dtm_npy, size=[5, 5], normalised_sobel=False, gaussian_preprocess=False
                     )
-                array_to_raster(sobel_npy, reference=dtm, out_path=sobel_path, creation_options=["COMPRESS=LZW"])
+                array_to_raster(sobel_npy, reference=dtm_path, out_path=sobel_path, creation_options=["COMPRESS=LZW"])
             
             if not os.path.isfile(vrt_path):
-                gdal.BuildVRT(vrt_path, [dtm, hat_path, sobel_path], options=gdal.BuildVRTOptions(separate=True, outputSRS='EPSG:25832'))
+                gdal.BuildVRT(vrt_path, [dtm_path, hat_path, sobel_path], options=gdal.BuildVRTOptions(separate=True, outputSRS='EPSG:25832'))
                 print('creating VRT for:', os.path.basename(vrt_path) + '...' )
             dsm_raster = None
             dtm_raster = None
-            print(os.path.basename(dtm), 'all files created!')
+            print(os.path.basename(dtm_path), 'all files created!')
             return vrt_path
         
         
-        results = ThreadPool(8).imap(make_hat_sobel, zip(dsm_list_this10km_tmp, dtm_list_this10km_tmp))
+        results = ThreadPool(8).imap(make_hat_sobel, zip(tmp_filtered_dsm_list, tmp_filtered_dtm_list))
         vrt_list = [vrt_tile for vrt_tile in results]
         print('HAT, SOBEL and VRT files created!')
 
@@ -735,7 +760,7 @@ def main():
             'n_classes': 2,
             'patch_size': 64,
             'overlap': 2,
-            'batch_size': 1024,
+            'batch_size': 128,
             'steps_per_predict': 128,
             'sigmoid_width': 3,
             'sigmoid_steepness': 7
@@ -841,8 +866,5 @@ if __name__ == '__main__':
 
 # print("all tiles predicted and saved!")
 
-#%%
 
-
-#%%
-
+# %%

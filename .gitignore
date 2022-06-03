@@ -1,7 +1,11 @@
 
 # data/
+leverance_temp_*/
+leverance_predictions_*/
 data/stonewalls/
 
+/3_predicting/leverance_temp_*/
+/3_predicting/leverance_predictions_*/
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

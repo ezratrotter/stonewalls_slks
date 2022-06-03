@@ -68,3 +68,25 @@ for tif in tif_list:
 print(f"All tiles from leverance {leverance_nr} vectorized!")
 
 # %%
+import os
+import glob
+import geopandas as gpd
+
+myfiles = glob.glob("D:/stonewalls_slks/lev/*.gpkg")
+
+print(len(myfiles))
+
+if not os.path.isdir("D:/stonewalls_slks/lev/new/"):
+    os.mkdir("D:/stonewalls_slks/lev/new/")
+
+for f in myfiles:
+    new_name = f.replace("lev", "lev/new")
+    gdf = gpd.read_file(f)
+    gdf.to_file(new_name, driver="GPKG")
+    #os.rename(f, f[1:])
+    #dir = "D:/stonewalls_slks/"
+    #base = os.path.basename(f)[1:]
+    #os.rename(f, dir + base)
+    #print(dir + base)
+
+# %%
